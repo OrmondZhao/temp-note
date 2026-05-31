@@ -730,24 +730,21 @@ async function exportData() {
     source &&
     (String(source.title || "").trim() || String(source.body || "").trim() || getAttachmentList(source).length);
   if (!hasContent) {
-    showToast("先选择一张卡片或创建一条草稿再导出");
+    showToast("编辑区有内容才能导出");
     return;
   }
   var note = normalizeNote(source);
-  try {
-    var response = await fetch("/api/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note: note }),
-    });
-    var result = await response.json().catch(function () { return null; });
-    if (!response.ok || !result || !result.ok) {
-      throw new Error((result && result.error) || "导出失败");
-    }
-    showToast("已导出到 exports/" + result.fileName);
-  } catch (error) {
-    showToast(error.message || "导出失败");
-  }
+  var data = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), note: note }, null, 2);
+  var blob = new Blob([data], { type: "application/json;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = (note.title || "untitled") + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("已导出 " + a.download);
 }
 
 async function importData(file) {
