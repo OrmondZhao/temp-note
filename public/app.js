@@ -22,10 +22,8 @@ const els = {
   title: document.getElementById("detail-title"),
   body: document.getElementById("detail-body"),
   tags: document.getElementById("detail-tags"),
-  saveNote: document.getElementById("save-note"),
   copySummary: document.getElementById("copy-summary"),
   copyCurrent: document.getElementById("copy-current"),
-  saveCurrent: document.getElementById("save-current"),
   newNote: document.getElementById("new-note"),
   dropzone: document.getElementById("editor-dropzone"),
   exportBtn: document.getElementById("export-btn"),
@@ -756,19 +754,50 @@ async function importData(file) {
   var payload = JSON.parse(await file.text());
   if (payload.note) {
     var imported = normalizeNote(payload.note, state.notes.length);
-    state.notes.unshift(imported);
+    var existingIndex = -1;
+    for (var i = 0; i < state.notes.length; i++) {
+      if (state.notes[i].id === imported.id) {
+        existingIndex = i;
+        break;
+      }
+    }
+    if (existingIndex >= 0) {
+      state.notes[existingIndex] = imported;
+      showToast("已更新卡片");
+    } else {
+      state.notes.unshift(imported);
+      showToast("已导入新卡片");
+    }
     state.selectedId = imported.id;
     state.mode = "edit";
   } else if (Array.isArray(payload.notes)) {
-    state.notes = payload.notes.filter(Boolean).map(function (note, index) { return normalizeNote(note, index); });
+    var added = 0;
+    var updated = 0;
+    payload.notes.filter(Boolean).forEach(function (noteItem) {
+      var n = normalizeNote(noteItem, state.notes.length);
+      var idx = -1;
+      for (var j = 0; j < state.notes.length; j++) {
+        if (state.notes[j].id === n.id) {
+          idx = j;
+          break;
+        }
+      }
+      if (idx >= 0) {
+        state.notes[idx] = n;
+        updated++;
+      } else {
+        state.notes.unshift(n);
+        added++;
+      }
+    });
     state.selectedId = state.notes[0] ? state.notes[0].id : null;
     state.mode = "edit";
+    showToast("已导入 " + added + " 张新卡片，更新 " + updated + " 张");
   } else {
     throw new Error("导入文件格式不正确");
   }
   await persist();
   render();
-  showToast(payload.note ? "已导入当前卡片" : "已导入素材");
 }
 
 function seedExample() {
@@ -868,8 +897,6 @@ async function handleIncomingImage(dataUrl, title) {
 
 function wireEvents() {
   els.newNote.addEventListener("click", setEditorToNew);
-  els.saveCurrent.addEventListener("click", saveCurrent);
-  els.saveNote.addEventListener("click", saveCurrent);
   els.copyCurrent.addEventListener("click", copyCurrent);
   els.copySummary.addEventListener("click", copyCurrent);
   els.togglePin.addEventListener("click", togglePin);

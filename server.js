@@ -91,14 +91,9 @@ const server = http.createServer((req, res) => {
         }
 
         const note = payload.note;
-        const stamp = new Date().toISOString().slice(0, 10);
-        const title = safeFilePart(note.title, "note");
-        const fileName = `${stamp}-${title}.json`;
+        const title = safeFilePart(note.title, "untitled");
+        const fileName = title + ".json";
         const filePath = path.join(exportsDir, fileName);
-        const finalName = fs.existsSync(filePath)
-          ? `${stamp}-${title}-${Date.now().toString(36)}.json`
-          : fileName;
-        const finalPath = path.join(exportsDir, finalName);
         const data = JSON.stringify(
           {
             version: 1,
@@ -109,7 +104,7 @@ const server = http.createServer((req, res) => {
           2,
         );
 
-        fs.writeFile(finalPath, data, "utf8", (error) => {
+        fs.writeFile(filePath, data, "utf8", (error) => {
           if (error) {
             send(res, 500, JSON.stringify({ ok: false, error: error.message }), {
               "Content-Type": "application/json; charset=utf-8",
@@ -122,8 +117,8 @@ const server = http.createServer((req, res) => {
             200,
             JSON.stringify({
               ok: true,
-              fileName: finalName,
-              fileUrl: `/exports/${encodeURIComponent(finalName)}`,
+              fileName: fileName,
+              fileUrl: `/exports/${encodeURIComponent(fileName)}`,
             }),
             {
               "Content-Type": "application/json; charset=utf-8",
