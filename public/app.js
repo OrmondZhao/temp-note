@@ -31,7 +31,6 @@ const els = {
   exportBtn: document.getElementById("export-btn"),
   importBtn: document.getElementById("import-btn"),
   importFile: document.getElementById("import-file"),
-  sampleBtn: document.getElementById("new-sample"),
   detailKind: document.getElementById("detail-kind"),
   editorTitle: document.getElementById("editor-title"),
   detailAttachments: document.getElementById("detail-attachments"),
@@ -66,7 +65,7 @@ let saveTimer = null;
 let toastTimer = null;
 
 function blankDraft() {
-  return { title: "", body: "", tags: [], attachments: [] };
+  return { title: "", body: "", tags: [], _tagsRaw: "", attachments: [] };
 }
 
 function createId() {
@@ -92,10 +91,22 @@ function formatTime(value) {
 }
 
 function parseTags(value) {
-  return String(value)
-    .split(/[,，、\n]/)
-    .map(function (part) { return part.trim(); })
-    .filter(Boolean);
+  if (!value || typeof value !== "string") return [];
+  var result = [];
+  var current = "";
+  for (var i = 0; i < value.length; i++) {
+    var c = value.charAt(i);
+    if (c === "," || c === "，" || c === "、" || c === "\n") {
+      var t = current.trim();
+      if (t) result.push(t);
+      current = "";
+    } else {
+      current += c;
+    }
+  }
+  var last = current.trim();
+  if (last) result.push(last);
+  return result;
 }
 
 function showToast(message) {
@@ -493,7 +504,9 @@ function renderEditor() {
   els.editorTitle.textContent = editingNew ? "新建内容" : note ? note.title : "主编辑区";
   els.title.value = (note && note.title) || "";
   els.body.value = (note && note.body) || "";
-  els.tags.value = ((note && note.tags) || []).join(", ");
+  els.tags.value = editingNew
+    ? ((note && note._tagsRaw) || "")
+    : ((note && note.tags) || []).join(", ");
   els.attachmentCount.textContent = attachments.length + " 张";
 
   if (attachments.length) {
@@ -565,6 +578,21 @@ function updateCurrent(patch) {
   if (state.mode === "new") {
     Object.assign(state.draft, patch);
     renderEditor();
+    var hasContent = state.draft.title.trim() || state.draft.body.trim() || getAttachmentList(state.draft).length;
+    if (!hasContent) return;
+    var note = makeNote({
+      title: state.draft.title,
+      body: state.draft.body,
+      tags: parseTags(state.draft._tagsRaw || ""),
+      attachments: getAttachmentList(state.draft),
+    });
+    state.notes.unshift(note);
+    state.selectedId = note.id;
+    state.mode = "edit";
+    state.draft = blankDraft();
+    scheduleSave("正在保存...");
+    render();
+    showToast("已自动保存");
     return;
   }
   var note = currentNote();
@@ -586,10 +614,11 @@ function saveCurrent() {
       showToast("先写点内容再保存会更有用");
       return;
     }
+    var rawTags = draft._tagsRaw || draft.tags || "";
     var note = makeNote({
       title: draft.title,
       body: draft.body,
-      tags: draft.tags,
+      tags: parseTags(rawTags),
       attachments: getAttachmentList(draft),
     });
     state.notes.unshift(note);
@@ -605,8 +634,13 @@ function saveCurrent() {
     showToast("没有可保存的内容");
     return;
   }
+  var note = currentNote();
+  var newTags = parseTags(els.tags.value);
+  note.tags = newTags;
+  note.updatedAt = new Date().toISOString();
   scheduleSave("正在保存...");
   showToast("已保存");
+  render();
 }
 
 async function copyCurrent() {
@@ -821,6 +855,7 @@ async function handleIncomingImage(dataUrl, title) {
     state.mode = "new";
     state.draft = Object.assign({}, blankDraft(), {
       title: title,
+      _tagsRaw: "",
       attachments: [{ id: createId(), dataUrl: dataUrl, name: title }],
     });
     render();
@@ -852,7 +887,6 @@ function wireEvents() {
   });
   els.exportBtn.addEventListener("click", exportData);
   els.importBtn.addEventListener("click", function () { els.importFile.click(); });
-  els.sampleBtn.addEventListener("click", seedExample);
 
   els.importFile.addEventListener("change", async function () {
     var file = els.importFile.files && els.importFile.files[0];
@@ -887,15 +921,20 @@ function wireEvents() {
     });
   });
 
-  [els.title, els.body, els.tags].forEach(function (field) {
+  [els.title, els.body].forEach(function (field) {
     field.addEventListener("input", function () {
       var patch = {
         title: els.title.value,
         body: els.body.value,
-        tags: parseTags(els.tags.value),
       };
       updateCurrent(patch);
     });
+  });
+
+  els.tags.addEventListener("input", function () {
+    if (state.mode === "new") {
+      state.draft._tagsRaw = els.tags.value;
+    }
   });
 
   els.dropzone.addEventListener("dragover", function (event) {
@@ -957,7 +996,7 @@ async function boot() {
     }
     wireEvents();
     render();
-    setStatus("已就绪，内容会自动保存在本地");
+    setStatus("已就绪，内容输入后会自动保存");
   } catch (error) {
     console.error(error);
     setStatus("启动失败，请刷新页面重试");
