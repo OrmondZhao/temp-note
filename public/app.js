@@ -145,11 +145,11 @@ function showToast(message) {
 function applyTheme() {
   document.body.dataset.theme = state.theme;
   if (state.theme === "light") {
-    els.toggleTheme.textContent = "暖色模式";
-  } else if (state.theme === "warm") {
-    els.toggleTheme.textContent = "暗黑模式";
-  } else {
     els.toggleTheme.textContent = "浅色模式";
+  } else if (state.theme === "warm") {
+    els.toggleTheme.textContent = "米棕模式";
+  } else {
+    els.toggleTheme.textContent = "暗黑模式";
   }
 }
 

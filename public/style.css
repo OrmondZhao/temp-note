@@ -702,21 +702,21 @@ body[data-theme="dark"] .dropzone {
 }
 
 body[data-theme="warm"] {
-  --bg: #efe0d0;
-  --bg-2: #e5d0bd;
-  --surface: rgba(255, 250, 243, 0.92);
-  --surface-strong: #f7eee6;
-  --text: #3f2f25;
-  --muted: #8b7968;
-  --accent: #b36b2f;
-  --accent-2: #7f5a3d;
-  --danger: #b44b3d;
-  --shadow: 0 18px 40px rgba(94, 64, 42, 0.12);
+  --bg: #e3d0b9;
+  --bg-2: #d4b49b;
+  --surface: rgba(247, 233, 220, 0.92);
+  --surface-strong: #eee0cf;
+  --text: #3c2a1f;
+  --muted: #7a5f50;
+  --accent: #a15a2c;
+  --accent-2: #6f4a35;
+  --danger: #9d4437;
+  --shadow: 0 18px 40px rgba(81, 53, 37, 0.16);
 }
 
 body[data-theme="warm"]::before {
-  opacity: 0.18;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.08), transparent 90%);
+  opacity: 0.22;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.12), transparent 90%);
 }
 
 body[data-theme="warm"] .stat,
@@ -737,9 +737,9 @@ body[data-theme="warm"] .detail-field input,
 body[data-theme="warm"] .detail-field textarea,
 body[data-theme="warm"] .image-modal-close,
 body[data-theme="warm"] .image-modal-copy {
-  background: rgba(255, 249, 242, 0.94);
+  background: rgba(245, 230, 216, 0.94);
   color: var(--text);
-  border-color: rgba(114, 78, 48, 0.12);
+  border-color: rgba(120, 83, 48, 0.16);
 }
 
 body[data-theme="warm"] .mini-btn,
@@ -764,12 +764,12 @@ body[data-theme="warm"] .mini-btn.active {
 
 body[data-theme="warm"] .ql-toolbar.ql-snow,
 body[data-theme="warm"] .ql-container.ql-snow {
-  background: rgba(255, 250, 243, 0.96);
-  border-color: rgba(114, 78, 48, 0.12);
+  background: rgba(242, 228, 212, 0.96);
+  border-color: rgba(120, 83, 48, 0.14);
 }
 
 body[data-theme="warm"] .ql-editor {
-  background: #f8f0e7;
+  background: #efddc8;
   color: var(--text);
 }
 
