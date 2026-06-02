@@ -144,7 +144,13 @@ function showToast(message) {
 
 function applyTheme() {
   document.body.dataset.theme = state.theme;
-  els.toggleTheme.textContent = state.theme === "dark" ? "浅色模式" : "暗黑模式";
+  if (state.theme === "light") {
+    els.toggleTheme.textContent = "暖色模式";
+  } else if (state.theme === "warm") {
+    els.toggleTheme.textContent = "暗黑模式";
+  } else {
+    els.toggleTheme.textContent = "浅色模式";
+  }
 }
 
 function openImageModal(dataUrl, title) {
@@ -936,10 +942,22 @@ function deleteCurrent() {
 }
 
 function toggleTheme() {
-  state.theme = state.theme === "dark" ? "light" : "dark";
+  if (state.theme === "light") {
+    state.theme = "warm";
+  } else if (state.theme === "warm") {
+    state.theme = "dark";
+  } else {
+    state.theme = "light";
+  }
   saveUiState();
   render();
-  showToast(state.theme === "dark" ? "已切换为暗黑模式" : "已切换为浅色模式");
+  if (state.theme === "light") {
+    showToast("已切换为浅色模式");
+  } else if (state.theme === "warm") {
+    showToast("已切换为米棕模式");
+  } else {
+    showToast("已切换为暗黑模式");
+  }
 }
 
 function seedExample() {
