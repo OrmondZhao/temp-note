@@ -1,0 +1,15 @@
+# public/_headers
+
+# HTML: always revalidate
+/index.html
+  Cache-Control: max-age=0, no-cache, must-revalidate
+
+# App shell assets: long cache with immutable (update version query when releasing)
+/app.js
+  Cache-Control: max-age=31536000, public, immutable
+/style.css
+  Cache-Control: max-age=31536000, public, immutable
+
+# Static assets fallback
+/*
+  Cache-Control: max-age=604800, public
