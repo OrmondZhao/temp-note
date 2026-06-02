@@ -409,6 +409,19 @@ button {
     background: rgba(255, 255, 255, 0.92);
   }
 
+  .detail-field .ql-toolbar.ql-snow .ql-stroke,
+  .detail-field .ql-toolbar.ql-snow .ql-fill {
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .detail-field .ql-toolbar.ql-snow button svg,
+  .detail-field .ql-toolbar.ql-snow .ql-picker-label svg,
+  .detail-field .ql-toolbar.ql-snow .ql-picker-item svg {
+    stroke-width: 1.2;
+  }
+
   .detail-field .ql-container.ql-snow {
     border-radius: 0 0 14px 14px;
     border: 1px solid rgba(56, 40, 27, 0.08);
