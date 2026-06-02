@@ -52,7 +52,7 @@ const state = {
   mode: "edit",
   draft: blankDraft(),
   query: "",
-  filter: "all",
+  filters: [],
   sort: "updated-desc",
   theme: "light",
 };
@@ -189,7 +189,11 @@ function loadUiState() {
     if (!raw) return;
     var ui = JSON.parse(raw);
     if (ui.query) state.query = ui.query;
-    if (ui.filter) state.filter = ui.filter;
+    if (ui.filters && Array.isArray(ui.filters)) {
+      state.filters = ui.filters;
+    } else if (ui.filter) {
+      state.filters = ui.filter === "all" ? [] : [ui.filter];
+    }
     if (ui.sort) state.sort = ui.sort;
     if (ui.theme) state.theme = ui.theme;
   } catch (e) {
@@ -202,7 +206,7 @@ function saveUiState() {
     UI_KEY,
     JSON.stringify({
       query: state.query,
-      filter: state.filter,
+      filters: state.filters,
       sort: state.sort,
       theme: state.theme,
     })
@@ -463,13 +467,13 @@ function activeNotes() {
   var query = state.query.trim().toLowerCase();
   var notes = state.notes.slice();
 
-  if (state.filter !== "all") {
+  if (state.filters && state.filters.length) {
     notes = notes.filter(function (note) {
-      if (state.filter === "text") return note.type === "text";
-      if (state.filter === "image") return note.type === "image";
-      if (state.filter === "pinned") return note.pinned;
-      if (state.filter === "favorite") return note.favorite;
-      return true;
+      var matchText = state.filters.indexOf("text") !== -1 && note.type === "text";
+      var matchImage = state.filters.indexOf("image") !== -1 && note.type === "image";
+      var matchPinned = state.filters.indexOf("pinned") !== -1 && note.pinned;
+      var matchFavorite = state.filters.indexOf("favorite") !== -1 && note.favorite;
+      return matchText || matchImage || matchPinned || matchFavorite;
     });
   }
 
@@ -556,7 +560,7 @@ function renderTags() {
 
 function renderFinder() {
   var notes = activeNotes();
-  els.resultCount.textContent = notes.length + " 条";
+  els.resultCount.textContent = notes.length + " / " + state.notes.length;
   els.grid.innerHTML = notes
     .map(function (note) {
       var selected = state.mode === "edit" && note.id === state.selectedId;
@@ -650,7 +654,9 @@ function renderEditor() {
 
 function renderButtons() {
   els.filterButtons.forEach(function (button) {
-    button.classList.toggle("active", button.dataset.filter === state.filter);
+    var filterValue = button.dataset.filter;
+    var isActive = filterValue === "all" ? state.filters.length === 0 : state.filters.indexOf(filterValue) !== -1;
+    button.classList.toggle("active", isActive);
   });
   els.search.value = state.query;
   els.sort.value = state.sort;
@@ -1085,7 +1091,17 @@ function wireEvents() {
 
   els.filterButtons.forEach(function (button) {
     button.addEventListener("click", function () {
-      state.filter = button.dataset.filter;
+      var filterValue = button.dataset.filter;
+      if (filterValue === "all") {
+        state.filters = [];
+      } else {
+        var index = state.filters.indexOf(filterValue);
+        if (index === -1) {
+          state.filters.push(filterValue);
+        } else {
+          state.filters.splice(index, 1);
+        }
+      }
       saveUiState();
       render();
     });

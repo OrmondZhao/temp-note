@@ -141,8 +141,8 @@ button {
 .quick-stats {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
-  padding: 14px 18px 18px;
+  gap: 8px;
+  padding: 10px 14px 12px;
 }
 
 .stat {
@@ -166,11 +166,11 @@ button {
 }
 
 .section {
-  padding: 0 18px 18px;
+  padding: 0 14px 12px;
 }
 
 .section h2 {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -349,17 +349,17 @@ button {
 .editor-shell {
   flex: 1;
   min-height: 0;
-  padding: 0 18px 18px;
+  padding: 0 12px 12px;
   overflow: auto;
 }
 
 .editor-grid {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(56, 40, 27, 0.08);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 12px;
 }
 
 .detail-field {
@@ -414,13 +414,13 @@ button {
     border: 1px solid rgba(56, 40, 27, 0.08);
     background: rgba(255, 255, 255, 0.92);
     min-height: 360px;
-    max-height: 48vh;
+    max-height: 60vh;
     overflow: hidden;
   }
 
   .detail-field .ql-editor {
-    min-height: 320px;
-    max-height: 44vh;
+    min-height: 340px;
+    max-height: 56vh;
     overflow-y: auto;
     line-height: 1.65;
     padding: 14px;
@@ -716,8 +716,8 @@ body[data-theme="dark"] .primary-btn {
 }
 
 .right {
-  padding: 18px;
-  gap: 14px;
+  padding: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
