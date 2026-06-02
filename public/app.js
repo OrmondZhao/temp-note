@@ -1,4 +1,4 @@
-const DB_NAME = "temp-material-board";
+﻿const DB_NAME = "temp-material-board";
 const DB_VERSION = 1;
 const STORE_NAME = "state";
 const STATE_KEY = "workspace";
@@ -13,8 +13,6 @@ const els = {
   emptyState: document.getElementById("empty-state"),
   content: document.getElementById("content"),
   resultCount: document.getElementById("result-count"),
-  saveState: document.getElementById("save-state"),
-  statusline: document.getElementById("statusline"),
   toast: document.getElementById("toast"),
   search: document.getElementById("search"),
   sort: document.getElementById("sort"),
@@ -40,6 +38,7 @@ const els = {
   imageModalCopy: document.getElementById("image-modal-copy"),
   imageModalClose: document.getElementById("image-modal-close"),
   toggleTheme: document.getElementById("toggle-theme"),
+  saveNote: document.getElementById("save-note"),
   togglePin: document.getElementById("toggle-pin"),
   toggleFavorite: document.getElementById("toggle-favorite"),
   moveUp: document.getElementById("move-up"),
@@ -59,8 +58,8 @@ const state = {
 };
 
 let db = null;
-let saveTimer = null;
 let toastTimer = null;
+let quill = null;
 
 function blankDraft() {
   return { title: "", body: "", tags: [], _tagsRaw: "", attachments: [] };
@@ -68,6 +67,35 @@ function blankDraft() {
 
 function createId() {
   return "note_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
+}
+
+function initEditorSurface() {
+  if (!els.body) return;
+  if (window.Quill && !quill) {
+    quill = new Quill("#detail-body", {
+      theme: "snow",
+      placeholder: "在这里输入正文、说明或备注。",
+      modules: {
+        toolbar: [
+          ["bold", "italic", "underline", "strike"],
+          [{ header: [1, 2, 3, false] }],
+          [{ list: "ordered" }, { list: "bullet" }],
+          ["blockquote", "code-block"],
+          ["link", "image"],
+          ["clean"]
+        ]
+      }
+    });
+    quill.root.setAttribute("spellcheck", "true");
+    quill.root.setAttribute("aria-multiline", "true");
+    quill.root.classList.add("rich-editor");
+  }
+}
+
+function getEditorHtml() {
+  if (!quill) return els.body ? els.body.innerHTML : "";
+  var html = quill.root.innerHTML || "";
+  return html === "<p><br></p>" ? "" : html;
 }
 
 function escapeHtml(value) {
@@ -94,7 +122,7 @@ function parseTags(value) {
   var current = "";
   for (var i = 0; i < value.length; i++) {
     var c = value.charAt(i);
-    if (c === "," || c === "，" || c === "、" || c === "\n") {
+    if (c === "," || c === ";" || c === "\n") {
       var t = current.trim();
       if (t) result.push(t);
       current = "";
@@ -142,7 +170,7 @@ async function copyImageFromModal() {
     if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
       var blob = await (await fetch(dataUrl)).blob();
       await navigator.clipboard.write([
-        new ClipboardItem((_obj = {}, _obj[blob.type || "image/png"] = blob, _obj)),
+        new ClipboardItem({ [blob.type || "image/png"]: blob }),
       ]);
       showToast("图片已复制");
       return;
@@ -153,21 +181,6 @@ async function copyImageFromModal() {
     console.error(error);
     showToast("复制失败");
   }
-  var _obj;
-}
-
-function setStatus(message) {
-  els.saveState.textContent = message;
-}
-
-function scheduleSave(message) {
-  if (message === undefined) message = "保存中..";
-  setStatus(message);
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(async function () {
-    await persist();
-    setStatus("已自动保存");
-  }, 180);
 }
 
 function loadUiState() {
@@ -230,14 +243,29 @@ function dbPut(value) {
 
 function cloneNotes(notes) {
   return notes.map(function (note) {
-    return Object.assign({}, note, { tags: note.tags.slice() });
+    return Object.assign({}, note, { 
+      tags: note.tags ? note.tags.slice() : [],
+      attachments: note.attachments ? note.attachments.slice() : []
+    });
   });
 }
 
 async function loadState() {
   db = await openDB();
   var record = await dbGet(STATE_KEY);
-  state.notes = record && record.notes && record.notes.length ? record.notes : [];
+  var rawNotes = [];
+  if (record) {
+    if (Array.isArray(record)) {
+      rawNotes = record;
+    } else if (Array.isArray(record.notes)) {
+      rawNotes = record.notes;
+    } else if (record.note) {
+      rawNotes = [record.note];
+    }
+  }
+  state.notes = rawNotes.filter(Boolean).map(function (note, index) {
+    return normalizeNote(note, index);
+  });
   state.selectedId = state.notes[0] ? state.notes[0].id : null;
 }
 
@@ -251,6 +279,65 @@ async function persist() {
 
 function currentNote() {
   return state.notes.find(function (note) { return note.id === state.selectedId; }) || null;
+}
+
+function readEditorFields() {
+  return {
+    title: els.title.value,
+    body: getEditorHtml(),
+    rawTags: els.tags.value,
+  };
+}
+
+function readEditorSource() {
+  var fields = readEditorFields();
+  if (state.mode === "new") {
+    return Object.assign({}, state.draft, {
+      title: fields.title,
+      body: fields.body,
+      _tagsRaw: fields.rawTags,
+      tags: parseTags(fields.rawTags),
+    });
+  }
+  var note = currentNote();
+  if (!note) {
+    return Object.assign(blankDraft(), {
+      title: fields.title,
+      body: fields.body,
+      _tagsRaw: fields.rawTags,
+      tags: parseTags(fields.rawTags),
+    });
+  }
+  return Object.assign({}, note, {
+    title: fields.title,
+    body: fields.body,
+    tags: parseTags(fields.rawTags),
+  });
+}
+
+function flushEditorState() {
+  var fields = readEditorFields();
+
+  if (state.mode === "new") {
+    Object.assign(state.draft, {
+      title: fields.title,
+      body: fields.body,
+      _tagsRaw: fields.rawTags,
+      tags: parseTags(fields.rawTags),
+    });
+    return state.draft;
+  }
+
+  var note = currentNote();
+  if (!note) return null;
+
+  Object.assign(note, {
+    title: fields.title,
+    body: fields.body,
+    tags: parseTags(fields.rawTags),
+    updatedAt: new Date().toISOString(),
+  });
+  return note;
 }
 
 function currentEditorData() {
@@ -285,6 +372,8 @@ function normalizeNote(note, fallbackIndex) {
   var type = note && note.type === "image" ? "image" : "text";
   var tags = Array.isArray(note && note.tags)
     ? note.tags.map(function (tag) { return String(tag).trim(); }).filter(Boolean)
+    : typeof (note && note.tags) === "string"
+      ? parseTags(note.tags)
     : [];
   var attachments;
   if (Array.isArray(note && note.attachments) && note.attachments.length) {
@@ -320,6 +409,16 @@ function normalizeNote(note, fallbackIndex) {
 }
 
 function setEditorToNew() {
+  if (state.mode === "new") {
+    var draft = flushEditorState();
+    if (draft && (String(draft.title || "").trim() || String(draft.body || "").trim() || getAttachmentList(draft).length)) {
+      saveCurrentSafe();
+    }
+  } else if (state.selectedId) {
+    if (flushEditorState()) {
+      persist();
+    }
+  }
   state.mode = "new";
   state.selectedId = null;
   state.draft = blankDraft();
@@ -337,12 +436,12 @@ function makeNote(options) {
     ? attachments
         .filter(Boolean)
         .map(function (attachment, index) {
-          return {
-            id: (attachment && attachment.id) || createId(),
-            dataUrl: String((attachment && attachment.dataUrl) || (attachment && attachment.imageData) || (attachment && attachment.url) || ""),
-            name: String((attachment && attachment.name) || ("附件 " + (index + 1))),
-          };
-        })
+        return {
+          id: (attachment && attachment.id) || createId(),
+          dataUrl: String((attachment && attachment.dataUrl) || (attachment && attachment.imageData) || (attachment && attachment.url) || ""),
+          name: String((attachment && attachment.name) || ("附件 " + (index + 1))),
+        };
+      })
         .filter(function (a) { return a.dataUrl; })
     : [];
   return {
@@ -376,7 +475,7 @@ function activeNotes() {
 
   if (query) {
     notes = notes.filter(function (note) {
-      var haystack = [note.title, note.body, note.tags.join(" "), note.type].join(" ").toLowerCase();
+      var haystack = [note.title, note.body, (note.tags || []).join(" "), note.type].join(" ").toLowerCase();
       return haystack.includes(query);
     });
   }
@@ -409,7 +508,7 @@ function renderStats() {
 function renderTags() {
   var tagCounts = {};
   state.notes.forEach(function (note) {
-    note.tags.forEach(function (tag) {
+    (note.tags || []).forEach(function (tag) {
       tagCounts[tag] = (tagCounts[tag] || 0) + 1;
     });
   });
@@ -438,16 +537,16 @@ function renderTags() {
     button.addEventListener("contextmenu", function (event) {
       event.preventDefault();
       var tag = button.getAttribute("data-tag") || "";
-      if (confirm('删除标签 "' + tag + '" 吗？这将从所有素材中移除该标签。')) {
+      if (confirm('Delete tag "' + tag + '" from all cards?')) {
         state.notes.forEach(function (note) {
-          note.tags = note.tags.filter(function (t) { return t !== tag; });
+          note.tags = (note.tags || []).filter(function (t) { return t !== tag; });
           note.updatedAt = new Date().toISOString();
         });
         if (state.query === tag) {
           state.query = "";
           els.search.value = "";
         }
-        scheduleSave();
+        persist();
         render();
         showToast('已删除标签 "' + tag + '"');
       }
@@ -474,10 +573,10 @@ function renderFinder() {
         '<div class="card-body">' +
           '<div class="meta-line">' +
             '<span>' + escapeHtml(formatTime(note.updatedAt)) + '</span>' +
-            '<span>' + (note.pinned ? "📌" : "") + (note.favorite ? " ★" : "") + '</span>' +
+            '<span>' + (note.pinned ? "置顶" : "") + (note.favorite ? " 收藏" : "") + '</span>' +
           '</div>' +
           '<h3 class="card-title">' + escapeHtml(note.title) + '</h3>' +
-          '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? "图片素材" : "暂无正文，点击后可继续补充")) + '</p>' +
+          '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? "图片素材" : "暂无正文")) + '</p>' +
           '<div class="badges">' + badges + '</div>' +
         '</div>' +
       '</article>';
@@ -485,12 +584,6 @@ function renderFinder() {
     .join("");
 
   els.emptyState.classList.toggle("hidden", notes.length !== 0);
-
-  els.grid.querySelectorAll("[data-id]").forEach(function (card) {
-    card.addEventListener("click", function () {
-      selectNote(card.getAttribute("data-id"));
-    });
-  });
 }
 
 function renderEditor() {
@@ -498,55 +591,61 @@ function renderEditor() {
   var editingNew = state.mode === "new";
   var attachments = getAttachmentList(note);
 
-  els.detailKind.textContent = editingNew ? "新建内容" : note ? (note.type === "image" ? "图片素材" : "文本素材") : "未选择";
-  els.editorTitle.textContent = editingNew ? "新建内容" : note ? note.title : "主编辑区";
-  els.title.value = (note && note.title) || "";
-  els.body.value = (note && note.body) || "";
-  els.tags.value = editingNew
+  if (els.detailKind) els.detailKind.textContent = editingNew ? "新建内容" : note ? (note.type === "image" ? "图片素材" : "文本素材") : "未选择";
+  if (els.editorTitle) els.editorTitle.textContent = editingNew ? "新建内容" : note ? note.title : "主编辑区";
+  if (els.title) els.title.value = (note && note.title) || "";
+  if (quill) {
+    quill.clipboard.dangerouslyPasteHTML((note && note.body) || "");
+  } else if (els.body) {
+    els.body.innerHTML = (note && note.body) || "";
+  }
+  if (els.tags) els.tags.value = editingNew
     ? ((note && note._tagsRaw) || "")
     : ((note && note.tags) || []).join(", ");
-  els.attachmentCount.textContent = attachments.length + " 张";
+  if (els.attachmentCount) els.attachmentCount.textContent = attachments.length + " 张";
 
-  if (attachments.length) {
-    els.detailAttachments.innerHTML = attachments
-      .map(function (attachment, index) {
-        var altText = escapeHtml(attachment.name || ("附件 " + (index + 1)));
-        return '<figure class="attachment-card" data-open-attachment="' + attachment.id + '">' +
-          '<img src="' + attachment.dataUrl + '" alt="' + altText + '" />' +
-          '<figcaption>' +
-            '<span>' + altText + '</span>' +
-            '<button class="mini-btn" type="button" data-remove-attachment="' + attachment.id + '">移除</button>' +
-          '</figcaption>' +
-        '</figure>';
-      })
-      .join("");
-  } else {
-    els.detailAttachments.innerHTML = '<div class="muted">当前没有截图附件，粘贴或拖入图片即可追加。</div>';
+  if (els.detailAttachments) {
+    if (attachments.length) {
+      els.detailAttachments.innerHTML = attachments
+        .map(function (attachment, index) {
+          var altText = escapeHtml(attachment.name || ("附件 " + (index + 1)));
+          return '<figure class="attachment-card" data-open-attachment="' + attachment.id + '">' +
+            '<img src="' + attachment.dataUrl + '" alt="' + altText + '" />' +
+            '<figcaption>' +
+              '<span>' + altText + '</span>' +
+              '<button class="mini-btn" type="button" data-remove-attachment="' + attachment.id + '">删除</button>' +
+            '</figcaption>' +
+          '</figure>';
+        })
+        .join("");
+    } else {
+      els.detailAttachments.innerHTML = '<div class="muted">当前没有截图附件，粘贴或拖入图片即可追加。</div>';
+    }
+
+    els.detailAttachments.querySelectorAll("[data-remove-attachment]").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        var attachmentId = button.getAttribute("data-remove-attachment");
+        var nextAttachments = attachments.filter(function (a) { return a.id !== attachmentId; });
+        setEditorAttachments(nextAttachments);
+      });
+    });
+
+    els.detailAttachments.querySelectorAll("[data-open-attachment]").forEach(function (card) {
+      card.addEventListener("click", function () {
+        var attachmentId = card.getAttribute("data-open-attachment");
+        var attachment = attachments.find(function (item) { return item.id === attachmentId; });
+        if (!attachment) return;
+          openImageModal(attachment.dataUrl, attachment.name || (note && note.title) || "图片预览");
+      });
+    });
   }
 
-  els.detailAttachments.querySelectorAll("[data-remove-attachment]").forEach(function (button) {
-    button.addEventListener("click", function (event) {
-      event.stopPropagation();
-      var attachmentId = button.getAttribute("data-remove-attachment");
-      var nextAttachments = attachments.filter(function (a) { return a.id !== attachmentId; });
-      setEditorAttachments(nextAttachments);
-    });
-  });
-
-  els.detailAttachments.querySelectorAll("[data-open-attachment]").forEach(function (card) {
-    card.addEventListener("click", function () {
-      var attachmentId = card.getAttribute("data-open-attachment");
-      var attachment = attachments.find(function (item) { return item.id === attachmentId; });
-      if (!attachment) return;
-      openImageModal(attachment.dataUrl, attachment.name || (note && note.title) || "图片预览");
-    });
-  });
-
-  els.togglePin.textContent = (note && note.pinned) ? "取消置顶" : "置顶";
-  els.toggleFavorite.textContent = (note && note.favorite) ? "取消收藏" : "收藏";
-  els.detailMeta.textContent = note
+  if (els.togglePin) els.togglePin.textContent = (note && note.pinned) ? "取消置顶" : "置顶";
+  if (els.toggleFavorite) els.toggleFavorite.textContent = (note && note.favorite) ? "取消收藏" : "收藏";
+  if (els.detailMeta) els.detailMeta.textContent = note
     ? "创建于 " + formatTime(note.createdAt || new Date()) + " · 更新于 " + formatTime(note.updatedAt || new Date())
-    : "点击右侧卡片可切换到编辑模式，或在左侧直接新建一条内容。";
+    : "点击右侧卡片可切换到编辑模式，或在左侧新建一条内容。";
 }
 
 function renderButtons() {
@@ -567,6 +666,11 @@ function render() {
 }
 
 function selectNote(id) {
+  if (state.mode === "edit" && state.selectedId) {
+    if (flushEditorState()) {
+      persist();
+    }
+  }
   state.mode = "edit";
   state.selectedId = id;
   render();
@@ -588,9 +692,8 @@ function updateCurrent(patch) {
     state.selectedId = note.id;
     state.mode = "edit";
     state.draft = blankDraft();
-    scheduleSave("正在保存...");
     render();
-    showToast("已自动保存");
+    persist().catch(function (error) { console.error(error); });
     return;
   }
   var note = currentNote();
@@ -600,151 +703,10 @@ function updateCurrent(patch) {
     renderEditor();
     return;
   }
+  flushEditorState();
   Object.assign(note, patch, { updatedAt: new Date().toISOString() });
-  scheduleSave();
   render();
-}
-
-function saveCurrent() {
-  if (state.mode === "new") {
-    var draft = currentEditorData();
-    if (!draft.title.trim() && !draft.body.trim() && !getAttachmentList(draft).length) {
-      showToast("先写点内容再保存会更有用");
-      return;
-    }
-    var rawTags = draft._tagsRaw || draft.tags || "";
-    var note = makeNote({
-      title: draft.title,
-      body: draft.body,
-      tags: parseTags(rawTags),
-      attachments: getAttachmentList(draft),
-    });
-    state.notes.unshift(note);
-    state.selectedId = note.id;
-    state.mode = "edit";
-    state.draft = blankDraft();
-    scheduleSave("正在保存...");
-    showToast("已保存到素材板");
-    render();
-    return;
-  }
-  if (!currentNote()) {
-    showToast("没有可保存的内容");
-    return;
-  }
-  var note = currentNote();
-  var newTags = parseTags(els.tags.value);
-  note.tags = newTags;
-  note.updatedAt = new Date().toISOString();
-  scheduleSave("正在保存...");
-  showToast("已保存");
-  render();
-}
-
-async function copyCurrent() {
-  var note = currentEditorData();
-  var attachments = getAttachmentList(note);
-  var text = [
-    note.title,
-    note.body,
-    note.tags && note.tags.length ? "标签：" + note.tags.join("，") : "",
-    attachments.length ? "截图：" + attachments.length + " 张" : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-  try {
-    await navigator.clipboard.writeText(text || note.title || note.body || "");
-    showToast("已复制");
-  } catch (e) {
-    showToast("复制失败");
-  }
-}
-
-function togglePin() {
-  if (state.mode === "new") {
-    showToast("新建内容保存后再置顶");
-    return;
-  }
-  var note = currentNote();
-  if (!note) return;
-  updateCurrent({ pinned: !note.pinned });
-}
-
-function toggleFavorite() {
-  if (state.mode === "new") {
-    showToast("新建内容保存后再收藏");
-    return;
-  }
-  var note = currentNote();
-  if (!note) return;
-  updateCurrent({ favorite: !note.favorite });
-}
-
-function moveSelected(delta) {
-  if (state.mode === "new") {
-    showToast("新建内容保存后才能调整顺序");
-    return;
-  }
-  var index = state.notes.findIndex(function (note) { return note.id === state.selectedId; });
-  if (index === -1) return;
-  var nextIndex = index + delta;
-  if (nextIndex < 0 || nextIndex >= state.notes.length) return;
-  var item = state.notes.splice(index, 1)[0];
-  state.notes.splice(nextIndex, 0, item);
-  state.notes.forEach(function (note, order) {
-    note.sortOrder = order + 1;
-    note.updatedAt = new Date().toISOString();
-  });
-  scheduleSave();
-  render();
-}
-
-function deleteCurrent() {
-  if (state.mode === "new") {
-    state.draft = blankDraft();
-    render();
-    showToast("草稿已清空");
-    return;
-  }
-  var note = currentNote();
-  if (!note) return;
-  var ok = confirm("删除「" + note.title + "」？");
-  if (!ok) return;
-  state.notes = state.notes.filter(function (item) { return item.id !== note.id; });
-  state.selectedId = state.notes[0] ? state.notes[0].id : null;
-  scheduleSave();
-  showToast("已删除");
-  render();
-}
-
-function toggleTheme() {
-  state.theme = state.theme === "dark" ? "light" : "dark";
-  saveUiState();
-  render();
-  showToast(state.theme === "dark" ? "已切换为暗黑模式" : "已切换为浅色模式");
-}
-
-async function exportData() {
-  var source = state.mode === "new" ? currentEditorData() : currentNote();
-  var hasContent =
-    source &&
-    (String(source.title || "").trim() || String(source.body || "").trim() || getAttachmentList(source).length);
-  if (!hasContent) {
-    showToast("编辑区有内容才能导出");
-    return;
-  }
-  var note = normalizeNote(source);
-  var data = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), note: note }, null, 2);
-  var blob = new Blob([data], { type: "application/json;charset=utf-8" });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement("a");
-  a.href = url;
-  a.download = (note.title || "untitled") + ".json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast("已导出 " + a.download);
+  persist().catch(function (error) { console.error(error); });
 }
 
 async function importData(file) {
@@ -789,12 +751,189 @@ async function importData(file) {
     });
     state.selectedId = state.notes[0] ? state.notes[0].id : null;
     state.mode = "edit";
-    showToast("已导入 " + added + " 张新卡片，更新 " + updated + " 张");
+    showToast("已导入 " + added + " 条新卡片，更新 " + updated + " 条卡片");
   } else {
     throw new Error("导入文件格式不正确");
   }
   await persist();
   render();
+}
+
+function saveCurrentSafe() {
+  var source = flushEditorState();
+
+  if (state.mode === "new") {
+    var draft = source || currentEditorData();
+    if (!draft.title.trim() && !draft.body.trim() && !getAttachmentList(draft).length) {
+      showToast("没有可保存的内容");
+      return;
+    }
+
+    var note = makeNote({
+      title: draft.title,
+      body: draft.body,
+      tags: Array.isArray(draft.tags) ? draft.tags : parseTags(draft._tagsRaw || ""),
+      attachments: getAttachmentList(draft),
+    });
+
+    state.notes.unshift(note);
+    state.selectedId = note.id;
+    state.mode = "edit";
+    state.draft = blankDraft();
+    persist();
+    showToast("已保存当前卡片");
+    render();
+    return;
+  }
+
+  if (!source) {
+    showToast("没有可保存的内容");
+    return;
+  }
+
+  persist();
+  showToast("已保存");
+  render();
+}
+
+async function copyCurrentSafe() {
+  var note = readEditorSource();
+  var attachments = getAttachmentList(note);
+  var text = [
+    note.title,
+    quill ? quill.getText() : note.body,
+    note.tags && note.tags.length ? "标签：" + note.tags.join("，") : "",
+    attachments.length ? "截图：" + attachments.length + " 张" : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  try {
+    await navigator.clipboard.writeText(text || note.title || note.body || "");
+    showToast("已复制");
+  } catch (e) {
+    showToast("复制失败");
+  }
+}
+
+async function exportDataSafe() {
+  var source = readEditorSource();
+
+  if (state.mode === "edit") {
+    var current = flushEditorState();
+    if (current) {
+      await persist();
+      source = current;
+    }
+  } else if (state.mode === "new") {
+    var draft = source;
+    var hasDraftContent =
+      draft &&
+      (String(draft.title || "").trim() || String(draft.body || "").trim() || getAttachmentList(draft).length);
+    if (hasDraftContent) {
+      var note = makeNote({
+        title: draft.title,
+        body: draft.body,
+        tags: Array.isArray(draft.tags) ? draft.tags : parseTags(draft._tagsRaw || ""),
+        attachments: getAttachmentList(draft),
+      });
+      state.notes.unshift(note);
+      state.selectedId = note.id;
+      state.mode = "edit";
+      state.draft = blankDraft();
+      await persist();
+      source = note;
+      render();
+      showToast("已保存当前卡片，准备导出");
+    }
+  }
+
+  var hasContent =
+    source &&
+    (String(source.title || "").trim() || String(source.body || "").trim() || getAttachmentList(source).length);
+  if (!hasContent) {
+    showToast("先写点内容再导出");
+    return;
+  }
+
+  var note = normalizeNote(source);
+  var data = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), note: note }, null, 2);
+  var blob = new Blob([data], { type: "application/json;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = (note.title || "未命名") + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("已导出 " + a.download);
+}
+
+function togglePin() {
+  if (state.mode === "new") {
+    showToast("新建内容保存后再置顶");
+    return;
+  }
+  var note = currentNote();
+  if (!note) return;
+  updateCurrent({ pinned: !note.pinned });
+}
+
+function toggleFavorite() {
+  if (state.mode === "new") {
+    showToast("新建内容保存后再收藏");
+    return;
+  }
+  var note = currentNote();
+  if (!note) return;
+  updateCurrent({ favorite: !note.favorite });
+}
+
+function moveSelected(delta) {
+  if (state.mode === "new") {
+    showToast("新建内容保存后才能调整顺序");
+    return;
+  }
+  flushEditorState();
+  var index = state.notes.findIndex(function (note) { return note.id === state.selectedId; });
+  if (index === -1) return;
+  var nextIndex = index + delta;
+  if (nextIndex < 0 || nextIndex >= state.notes.length) return;
+  var item = state.notes.splice(index, 1)[0];
+  state.notes.splice(nextIndex, 0, item);
+  state.notes.forEach(function (note, order) {
+    note.sortOrder = order + 1;
+    note.updatedAt = new Date().toISOString();
+  });
+  persist().catch(function (error) { console.error(error); });
+  render();
+}
+
+function deleteCurrent() {
+  if (state.mode === "new") {
+    state.draft = blankDraft();
+    render();
+    showToast("草稿已清空");
+    return;
+  }
+  flushEditorState();
+  var note = currentNote();
+  if (!note) return;
+  var ok = confirm("删除「" + note.title + "」？");
+  if (!ok) return;
+  state.notes = state.notes.filter(function (item) { return item.id !== note.id; });
+  state.selectedId = state.notes[0] ? state.notes[0].id : null;
+  persist().catch(function (error) { console.error(error); });
+  showToast("已删除");
+  render();
+}
+
+function toggleTheme() {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  saveUiState();
+  render();
+  showToast(state.theme === "dark" ? "已切换为暗黑模式" : "已切换为浅色模式");
 }
 
 function seedExample() {
@@ -807,9 +946,9 @@ function seedExample() {
       id: createId(),
       type: "text",
       title: "需求摘录",
-      body: "把工作里临时出现的内容先放在这里，后面再整理成正式文档。",
+      body: "先把临时内容放在这里，后面再整理成正式文档。",
       attachments: [],
-      tags: ["工作", "需求"],
+      tags: ["工作", "待审"],
       pinned: true,
       favorite: false,
       sortOrder: 1,
@@ -820,7 +959,7 @@ function seedExample() {
       id: createId(),
       type: "image",
       title: "参考截图",
-      body: "可以把截图拖进来，后面再继续标注和搜索。",
+      body: "先拖一张截图进来，后面再继续标注和搜索。",
       attachments: [
         {
           id: createId(),
@@ -838,7 +977,7 @@ function seedExample() {
               '<rect x="90" y="124" width="238" height="20" rx="10" fill="rgba(255,255,255,0.86)"/>' +
               '<rect x="90" y="162" width="310" height="14" rx="7" fill="rgba(255,255,255,0.75)"/>' +
               '<rect x="90" y="188" width="270" height="14" rx="7" fill="rgba(255,255,255,0.65)"/>' +
-              '<text x="90" y="258" fill="white" font-size="26" font-family="Arial, sans-serif">Reference Capture</text>' +
+              '<text x="90" y="258" fill="white" font-size="26" font-family="Arial, sans-serif">参考截图</text>' +
               '</svg>'
             ),
           name: "示例图 1",
@@ -855,7 +994,7 @@ function seedExample() {
   state.selectedId = state.notes[0].id;
   state.mode = "edit";
   persist().then(function () { render(); });
-  showToast("已插入示例素材");
+  showToast("已插入示例内容");
 }
 
 function readFileAsDataUrl(file) {
@@ -873,7 +1012,7 @@ async function handleIncomingImage(dataUrl, title) {
     state.draft.attachments = getAttachmentList(state.draft).concat([{ id: createId(), dataUrl: dataUrl, name: title }]);
     if (!state.draft.title.trim()) state.draft.title = title;
     renderEditor();
-    showToast("已加入草稿");
+    showToast("已添加到草稿");
     return;
   }
   var note = currentNote();
@@ -893,9 +1032,16 @@ async function handleIncomingImage(dataUrl, title) {
 }
 
 function wireEvents() {
+  els.grid.addEventListener("click", function (event) {
+    var card = event.target.closest("[data-id]");
+    if (card) {
+      selectNote(card.getAttribute("data-id"));
+    }
+  });
+
   els.newNote.addEventListener("click", setEditorToNew);
-  els.copyCurrent.addEventListener("click", copyCurrent);
-  els.copySummary.addEventListener("click", copyCurrent);
+  els.copyCurrent.addEventListener("click", copyCurrentSafe);
+  els.copySummary.addEventListener("click", copyCurrentSafe);
   els.togglePin.addEventListener("click", togglePin);
   els.toggleFavorite.addEventListener("click", toggleFavorite);
   els.moveUp.addEventListener("click", function () { moveSelected(-1); });
@@ -909,7 +1055,7 @@ function wireEvents() {
       closeImageModal();
     }
   });
-  els.exportBtn.addEventListener("click", exportData);
+  els.exportBtn.addEventListener("click", exportDataSafe);
   els.importBtn.addEventListener("click", function () { els.importFile.click(); });
 
   els.importFile.addEventListener("change", async function () {
@@ -945,15 +1091,7 @@ function wireEvents() {
     });
   });
 
-  [els.title, els.body].forEach(function (field) {
-    field.addEventListener("input", function () {
-      var patch = {
-        title: els.title.value,
-        body: els.body.value,
-      };
-      updateCurrent(patch);
-    });
-  });
+  els.saveNote.addEventListener("click", saveCurrentSafe);
 
   els.tags.addEventListener("input", function () {
     if (state.mode === "new") {
@@ -991,7 +1129,7 @@ function wireEvents() {
     var file = imageItem.getAsFile();
     if (!file) return;
     var dataUrl = await readFileAsDataUrl(file);
-    await handleIncomingImage(dataUrl, "剪贴板图片");
+    await handleIncomingImage(dataUrl, "粘贴图片");
     event.preventDefault();
   });
 
@@ -1018,14 +1156,16 @@ async function boot() {
     if (!state.notes.length) {
       await persist();
     }
+    initEditorSurface();
     wireEvents();
     render();
-    setStatus("已就绪，内容输入后会自动保存");
   } catch (error) {
     console.error(error);
-    setStatus("启动失败，请刷新页面重试");
     showToast("页面启动失败");
   }
 }
 
-boot();
+document.addEventListener("DOMContentLoaded", function() {
+  boot();
+});
+

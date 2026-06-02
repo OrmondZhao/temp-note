@@ -220,6 +220,12 @@ button {
   border: 1px solid rgba(56, 40, 27, 0.08);
 }
 
+.mini-btn.active {
+  background: rgba(201, 107, 63, 0.12);
+  color: var(--accent);
+  border-color: rgba(201, 107, 63, 0.22);
+}
+
 .primary-btn {
   background: linear-gradient(135deg, var(--accent), #da8a63);
   color: #fff;
@@ -238,6 +244,12 @@ button {
 .chip:hover,
 .card:hover {
   transform: translateY(-1px);
+}
+
+.ghost-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
 .tag-cloud {
@@ -337,8 +349,8 @@ button {
 .editor-shell {
   flex: 1;
   min-height: 0;
-  overflow: auto;
   padding: 0 18px 18px;
+  overflow: auto;
 }
 
 .editor-grid {
@@ -372,14 +384,57 @@ button {
   font-size: 13px;
 }
 
-.detail-field textarea {
+.detail-field [contenteditable="true"] {
+  width: 100%;
   min-height: 360px;
   height: 48vh;
   resize: vertical;
   line-height: 1.65;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 40, 27, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 12px;
+  outline: 0;
+  color: var(--text);
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.dropzone {
+  .detail-field .ql-toolbar.ql-snow {
+    border-radius: 14px 14px 0 0;
+    border: 1px solid rgba(56, 40, 27, 0.08);
+    border-bottom: none;
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .detail-field .ql-container.ql-snow {
+    border-radius: 0 0 14px 14px;
+    border: 1px solid rgba(56, 40, 27, 0.08);
+    background: rgba(255, 255, 255, 0.92);
+    min-height: 360px;
+    max-height: 48vh;
+    overflow: hidden;
+  }
+
+  .detail-field .ql-editor {
+    min-height: 320px;
+    max-height: 44vh;
+    overflow-y: auto;
+    line-height: 1.65;
+    padding: 14px;
+    font-size: 13px;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .detail-field .ql-editor.ql-blank::before {
+    left: 14px;
+    color: rgba(118, 106, 95, 0.75);
+  }
+
   padding: 14px;
   color: var(--muted);
   line-height: 1.6;
@@ -587,6 +642,45 @@ body[data-theme="dark"] .select,
 body[data-theme="dark"] .detail-field input,
 body[data-theme="dark"] .detail-field textarea {
   background: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .ghost-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+body[data-theme="dark"] .mini-btn.active {
+  background: rgba(201, 107, 63, 0.25);
+  color: var(--accent);
+  border-color: rgba(201, 107, 63, 0.4);
+}
+
+body[data-theme="dark"] .ql-toolbar.ql-snow,
+body[data-theme="dark"] .ql-container.ql-snow {
+  background: rgba(24, 28, 27, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="dark"] .ql-editor {
+  background: #171b1b;
+  color: #f3efe7;
+}
+
+body[data-theme="dark"] .ql-editor a {
+  color: #9cc6ff;
+}
+
+body[data-theme="dark"] .ql-toolbar.ql-snow button,
+body[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-label,
+body[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-item {
+  color: #f3efe7;
+}
+
+body[data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke,
+body[data-theme="dark"] .ql-toolbar.ql-snow .ql-fill {
+  stroke: #f3efe7;
+  fill: #f3efe7;
 }
 
 body[data-theme="dark"] .hero {
@@ -829,4 +923,140 @@ body[data-theme="dark"] .primary-btn {
   .workspace-title {
     white-space: normal;
   }
+}
+
+.EasyMDE {
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: var(--surface-strong);
+}
+
+.EasyMDE {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.EasyMDE .CodeMirror {
+  min-height: 200px;
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  background: var(--surface-strong);
+  color: var(--text);
+  resize: vertical;
+  overflow: auto;
+}
+
+.EasyMDE:hover .CodeMirror {
+  cursor: row-resize;
+}
+
+.EasyMDE .CodeMirror-gutters {
+  background: var(--bg-2);
+  border-right: 1px solid var(--bg-2);
+}
+
+.EasyMDE .CodeMirror-cursor {
+  border-left: 2px solid var(--text);
+}
+
+.editor-toolbar {
+  border-radius: 14px 14px 0 0;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bg-2);
+}
+
+.editor-toolbar button {
+  color: var(--text) !important;
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+  height: auto !important;
+  border-radius: 4px !important;
+}
+
+.editor-toolbar button:hover,
+.editor-toolbar button.active {
+  background: var(--surface-strong) !important;
+  color: var(--text) !important;
+}
+
+.editor-toolbar .fa,
+.editor-toolbar .glyphicon {
+  font-size: 12px !important;
+}
+
+.editor-preview {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+body[data-theme="dark"] .EasyMDE,
+body[data-theme="dark"] .EasyMDE .CodeMirror {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+body[data-theme="dark"] .EasyMDE .CodeMirror-gutters {
+  background: var(--bg-2);
+  border-color: var(--bg-2);
+}
+
+body[data-theme="dark"] .editor-toolbar {
+  background: var(--bg-2);
+  border-color: var(--bg-2);
+}
+
+body[data-theme="dark"] .editor-toolbar button {
+  color: var(--text) !important;
+}
+
+body[data-theme="dark"] .editor-toolbar button:hover,
+body[data-theme="dark"] .editor-toolbar button.active {
+  background: var(--surface) !important;
+  color: var(--accent) !important;
+}
+
+/* 编辑区背景 */
+body[data-theme="dark"] .EasyMDE .CodeMirror,
+body[data-theme="dark"] .EasyMDE .CodeMirror-lines {
+  background: var(--surface-strong) !important;
+  color: var(--text) !important;
+}
+
+/* 行号栏 */
+body[data-theme="dark"] .EasyMDE .CodeMirror-gutters {
+  background: var(--bg-2) !important;
+  border-color: var(--bg-2) !important;
+  color: var(--muted) !important;
+}
+
+/* 光标颜色 */
+body[data-theme="dark"] .EasyMDE .CodeMirror-cursor {
+  border-left-color: var(--text) !important;
+}
+
+/* 选中区域 */
+body[data-theme="dark"] .EasyMDE .CodeMirror-selected {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Markdown 高亮颜色 */
+body[data-theme="dark"] .cm-s-easymde span.cm-comment {
+  color: #8a8f8c !important;
+}
+
+body[data-theme="dark"] .cm-s-easymde span.cm-string {
+  color: #d8c48c !important;
+}
+
+body[data-theme="dark"] .cm-s-easymde span.cm-keyword {
+  color: #f09b6d !important;
+}
+
+body[data-theme="dark"] .cm-s-easymde span.cm-variable {
+  color: #e8e3d8 !important;
 }
