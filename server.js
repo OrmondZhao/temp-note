@@ -134,8 +134,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "") {
     serveFile(path.join(publicDir, "index.html"), res);
+    return;
+  }
+
+  if (pathname === "/en" || pathname === "/en/") {
+    res.writeHead(302, { Location: "/" });
+    res.end();
     return;
   }
 
