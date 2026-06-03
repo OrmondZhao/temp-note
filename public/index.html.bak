@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>临时素材板</title>
+    <title>临时笔记</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -11,7 +11,7 @@
       <aside class="panel left">
         <section class="hero">
           <div class="brand">
-            <h1>临时素材板</h1>
+            <h1>临时笔记</h1>
             <span class="badge">Prototype</span>
           </div>
           <p>把工作中来得快、用得快的文本和图片，统一放进一个随时可打开的桌面级网页里。</p>

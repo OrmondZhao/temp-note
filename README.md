@@ -1,4 +1,4 @@
-# 临时素材板 / Temp Material Board
+# 临时笔记 / Temp Note
 
 一个在浏览器中随时打开、用于临时收集和查看文本与图片素材的轻量网页应用。
 A desk-level web page for capturing text and images that come fast and get used fast — open it anytime in your browser.
