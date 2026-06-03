@@ -75,6 +75,7 @@
   "lang-toggle": "中文 / EN",
   "lang-switch": "中文 / EN",
   "btn-export": "Export",
+  "btn-import-all": "Import All",
   "btn-import": "Import",
   "btn-copy-summary": "Copy Summary",
   "unpin": "Unpin",

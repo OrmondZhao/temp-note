@@ -26,6 +26,7 @@ const els = {
   dropzone: document.getElementById("editor-dropzone"),
   exportBtn: document.getElementById("export-btn"),
   importBtn: document.getElementById("import-btn"),
+  importAllBtn: document.getElementById("import-all-btn"),
   importFile: document.getElementById("import-file"),
   detailKind: document.getElementById("detail-kind"),
   editorTitle: document.getElementById("editor-title"),
@@ -898,6 +899,34 @@ async function importData(file) {
   render();
 }
 
+async function importAllFromExports() {
+  try {
+    var res = await fetch("/api/import-batch");
+    var data = await res.json();
+    if (!data.ok || !data.notes || !data.notes.length) {
+      showToast(data.error || "没有可导入的文件");
+      return;
+    }
+    var added = 0, updated = 0;
+    data.notes.filter(Boolean).forEach(function(noteItem) {
+      var n = normalizeNote(noteItem, state.notes.length);
+      var idx = -1;
+      for (var j = 0; j < state.notes.length; j++) {
+        if (state.notes[j].id === n.id) { idx = j; break; }
+      }
+      if (idx >= 0) { state.notes[idx] = n; updated++; }
+      else { state.notes.unshift(n); added++; }
+    });
+    state.selectedId = state.notes[0] ? state.notes[0].id : null;
+    state.mode = "edit";
+    showToast(I18N.t("import-batch", { added: added, updated: updated }));
+    await persist();
+    render();
+  } catch (e) {
+    showToast(I18N.t("import-failed"));
+  }
+}
+
 function saveCurrentSafe() {
   var source = flushEditorState();
 
@@ -1208,6 +1237,7 @@ function wireEvents() {
   });
   els.exportBtn.addEventListener("click", exportDataSafe);
   els.importBtn.addEventListener("click", function () { els.importFile.click(); });
+  els.importAllBtn.addEventListener("click", importAllFromExports);
 
   els.importFile.addEventListener("change", async function () {
     var file = els.importFile.files && els.importFile.files[0];
