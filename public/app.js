@@ -181,6 +181,7 @@ function initEditorSurface() {
       placeholder: I18N.t("placeholder-body"),
       modules: {
         toolbar: [
+          ["undo", "redo"],
           ["bold", "italic", "underline", "strike"],
           [{ header: [1, 2, 3, false] }],
           [{ list: "ordered" }, { list: "bullet" }],
