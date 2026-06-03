@@ -176,6 +176,9 @@ function createId() {
 function initEditorSurface() {
   if (!els.body) return;
   if (window.Quill && !quill) {
+    var icons = Quill.import('ui/icons');
+    icons['undo'] = '<svg viewBox="0 0 18 18"><path d="M3 7a6 6 0 1 1 1.5 3.97" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polyline points="3,11 3,7 7,7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    icons['redo'] = '<svg viewBox="0 0 18 18"><path d="M15 7a6 6 0 1 0-1.5 3.97" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polyline points="15,11 15,7 11,7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     quill = new Quill("#detail-body", {
       theme: "snow",
       placeholder: I18N.t("placeholder-body"),
