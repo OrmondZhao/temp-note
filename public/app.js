@@ -177,26 +177,29 @@ function initEditorSurface() {
   if (!els.body) return;
   if (window.Quill && !quill) {
     var icons = Quill.import('ui/icons');
-    icons['undo'] = '<svg viewBox="0 0 18 18"><circle cx="6" cy="10" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.2 10 L2.5 10 L2.5 7.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    icons['redo'] = '<svg viewBox="0 0 18 18"><circle cx="12" cy="10" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M13.8 10 L15.5 10 L15.5 7.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    icons['undo'] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-200v-80h200q83 0 141.5-58.5T680-480q0-83-58.5-141.5T480-680H273l103 104-56 56-200-200 200-200 56 56-103 104h207q116 0 198 82t82 198q0 116-82 198t-198 82H280Z"/></svg>';
+    icons['redo'] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor"><path d="M680-200H480q-116 0-198-82t-82-198q0-116 82-198t198-82h207L584-864l56-56 200 200-200 200-56-56 103-104H480q-83 0-141.5 58.5T280-480q0 83 58.5 141.5T480-280h200v80Z"/></svg>';
     quill = new Quill("#detail-body", {
       theme: "snow",
       placeholder: I18N.t("placeholder-body"),
       modules: {
-        toolbar: [
-          ["undo", "redo"],
-          ["bold", "italic", "underline", "strike"],
-          [{ header: [1, 2, 3, false] }],
-          [{ list: "ordered" }, { list: "bullet" }],
-          ["blockquote", "code-block"],
-          ["link", "image"],
-          ["clean"]
-        ]
+        toolbar: [["bold", "italic", "underline", "strike"], [{ header: [1, 2, 3, false] }], [{ list: "ordered" }, { list: "bullet" }], ["blockquote", "code-block"], ["link", "image"], ["clean"]]
       }
     });
     quill.root.setAttribute("spellcheck", "true");
     quill.root.setAttribute("aria-multiline", "true");
     quill.root.classList.add("rich-editor");
+    var tb = document.querySelector(".ql-toolbar");
+    if (tb) {
+      var firstGroup = tb.querySelector(".ql-formats");
+      if (firstGroup) {
+        firstGroup.insertAdjacentHTML("afterbegin", '<button type="button" class="ql-undo" title="Undo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" style="width:18px;height:18px"><path d="M280-200v-80h200q83 0 141.5-58.5T680-480q0-83-58.5-141.5T480-680H273l103 104-56 56-200-200 200-200 56 56-103 104h207q116 0 198 82t82 198q0 116-82 198t-198 82H280Z"/></svg></button><button type="button" class="ql-redo" title="Redo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" style="width:18px;height:18px"><path d="M680-200H480q-116 0-198-82t-82-198q0-116 82-198t198-82h207L584-864l56-56 200 200-200 200-56-56 103-104H480q-83 0-141.5 58.5T280-480q0 83 58.5 141.5T480-280h200v80Z"/></svg></button>');
+        var undoBtn = tb.querySelector(".ql-undo");
+        var redoBtn = tb.querySelector(".ql-redo");
+        if (undoBtn) undoBtn.addEventListener("click", function() { quill.history.undo(); });
+        if (redoBtn) redoBtn.addEventListener("click", function() { quill.history.redo(); });
+      }
+    }
   }
 }
 
@@ -647,9 +650,24 @@ function renderTags() {
   els.tagCloud.querySelectorAll("[data-tag]").forEach(function (button) {
     button.addEventListener("click", function () {
       var tag = button.getAttribute("data-tag") || "";
-      state.query = tag;
-      els.search.value = tag;
-      saveUiState();
+      var current = els.tags ? els.tags.value : "";
+      var existing = parseTags(current);
+      if (existing.indexOf(tag) === -1) {
+        existing.push(tag);
+      }
+      var newRaw = existing.join(", ");
+      if (state.mode === "new") {
+        state.draft._tagsRaw = newRaw;
+        state.draft.tags = existing;
+      } else {
+        var note = currentNote();
+        if (note) {
+          note.tags = existing;
+          note.updatedAt = new Date().toISOString();
+          persist().catch(function (e) { console.error(e); });
+        }
+      }
+      if (els.tags) els.tags.value = newRaw;
       render();
     });
 
