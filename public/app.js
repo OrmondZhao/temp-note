@@ -28,6 +28,7 @@ const els = {
   importBtn: document.getElementById("import-btn"),
   importAllBtn: document.getElementById("import-all-btn"),
   importFile: document.getElementById("import-file"),
+  importDirFile: document.getElementById("import-dir-file"),
   detailKind: document.getElementById("detail-kind"),
   editorTitle: document.getElementById("editor-title"),
   detailAttachments: document.getElementById("detail-attachments"),
@@ -439,9 +440,9 @@ function readEditorSource() {
 }
 
 function flushEditorState() {
-  var fields = readEditorFields();
-
+  var note = currentNote();
   if (state.mode === "new") {
+    var fields = readEditorFields();
     Object.assign(state.draft, {
       title: fields.title,
       body: fields.body,
@@ -450,16 +451,17 @@ function flushEditorState() {
     });
     return state.draft;
   }
-
-  var note = currentNote();
   if (!note) return null;
-
+  if (!els.title || !els.title.offsetParent) return note;
+  var fields = readEditorFields();
+  if (!fields.title.trim() && !fields.body.trim() && !fields.rawTags.trim()) return note;
+  var changed = fields.title !== note.title || fields.body !== note.body || fields.rawTags !== ((note.tags || []).join(", "));
   Object.assign(note, {
     title: fields.title,
     body: fields.body,
     tags: parseTags(fields.rawTags),
-    updatedAt: new Date().toISOString(),
   });
+  if (changed) note.updatedAt = new Date().toISOString();
   return note;
 }
 
@@ -724,7 +726,12 @@ function renderFinder() {
   els.emptyState.classList.toggle("hidden", notes.length !== 0);
 }
 
-function renderEditor() {
+var _lastRenderedId = null;
+
+function renderEditor(skipFlush) {
+  var currentId = state.mode === "new" ? "__new__" : state.selectedId;
+  if (!skipFlush && currentId === _lastRenderedId) flushEditorState();
+  _lastRenderedId = currentId;
   var note = state.mode === "new" ? state.draft : currentNote();
   var editingNew = state.mode === "new";
   var attachments = getAttachmentList(note);
@@ -732,10 +739,11 @@ function renderEditor() {
   if (els.detailKind) els.detailKind.textContent = editingNew ? I18N.t("detail-kind-new") : note ? (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("detail-kind-text")) : I18N.t("detail-none");
   if (els.editorTitle) els.editorTitle.textContent = editingNew ? I18N.t("detail-kind-new") : note ? note.title : I18N.t("eyebrow-editor");
   if (els.title) els.title.value = (note && note.title) || "";
+  var newBody = (note && note.body) || "";
   if (quill) {
-    quill.clipboard.dangerouslyPasteHTML((note && note.body) || "");
+    if (quill.root.innerHTML !== newBody) quill.clipboard.dangerouslyPasteHTML(newBody);
   } else if (els.body) {
-    els.body.innerHTML = (note && note.body) || "";
+    if (els.body.innerHTML !== newBody) els.body.innerHTML = newBody;
   }
   if (els.tags) els.tags.value = editingNew
     ? ((note && note._tagsRaw) || "")
@@ -900,31 +908,7 @@ async function importData(file) {
 }
 
 async function importAllFromExports() {
-  try {
-    var res = await fetch("/api/import-batch");
-    var data = await res.json();
-    if (!data.ok || !data.notes || !data.notes.length) {
-      showToast(data.error || "没有可导入的文件");
-      return;
-    }
-    var added = 0, updated = 0;
-    data.notes.filter(Boolean).forEach(function(noteItem) {
-      var n = normalizeNote(noteItem, state.notes.length);
-      var idx = -1;
-      for (var j = 0; j < state.notes.length; j++) {
-        if (state.notes[j].id === n.id) { idx = j; break; }
-      }
-      if (idx >= 0) { state.notes[idx] = n; updated++; }
-      else { state.notes.unshift(n); added++; }
-    });
-    state.selectedId = state.notes[0] ? state.notes[0].id : null;
-    state.mode = "edit";
-    showToast(I18N.t("import-batch", { added: added, updated: updated }));
-    await persist();
-    render();
-  } catch (e) {
-    showToast(I18N.t("import-failed"));
-  }
+  if (els.importDirFile) els.importDirFile.click();
 }
 
 function saveCurrentSafe() {
@@ -1238,6 +1222,38 @@ function wireEvents() {
   els.exportBtn.addEventListener("click", exportDataSafe);
   els.importBtn.addEventListener("click", function () { els.importFile.click(); });
   els.importAllBtn.addEventListener("click", importAllFromExports);
+
+if (els.importDirFile) els.importDirFile.addEventListener("change", async function() {
+  var files = Array.from(this.files || []).filter(function(f) { return f.name.endsWith(".json"); });
+  if (!files.length) return;
+  var savedId = state.selectedId;
+  for (var i = 0; i < files.length; i++) {
+    var payload = JSON.parse(await files[i].text());
+    if (payload.note) {
+      var imported = normalizeNote(payload.note, state.notes.length);
+      var existingIndex = -1;
+      for (var j = 0; j < state.notes.length; j++) {
+        if (state.notes[j].id === imported.id) { existingIndex = j; break; }
+      }
+      if (existingIndex >= 0) { state.notes[existingIndex] = imported; }
+      else { state.notes.unshift(imported); }
+    } else if (Array.isArray(payload.notes)) {
+      payload.notes.filter(Boolean).forEach(function(noteItem) {
+        var n = normalizeNote(noteItem, state.notes.length);
+        var idx = -1;
+        for (var k = 0; k < state.notes.length; k++) {
+          if (state.notes[k].id === n.id) { idx = k; break; }
+        }
+        if (idx >= 0) { state.notes[idx] = n; }
+        else { state.notes.unshift(n); }
+      });
+    }
+  }
+  await persist();
+  state.selectedId = savedId;
+  render();
+  this.value = "";
+});
 
   els.importFile.addEventListener("change", async function () {
     var file = els.importFile.files && els.importFile.files[0];

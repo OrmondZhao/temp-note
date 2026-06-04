@@ -80,58 +80,6 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(url.pathname);
 
-  if (req.method === "GET" && pathname === "/api/import-batch") {
-    fs.readdir(exportsDir, (err, files) => {
-      if (err) {
-        send(res, 500, JSON.stringify({ ok: false, error: "Cannot read exports directory" }), {
-          "Content-Type": "application/json; charset=utf-8",
-        });
-        return;
-      }
-      const jsonFiles = files.filter((f) => f.endsWith(".json"));
-      if (!jsonFiles.length) {
-        send(res, 200, JSON.stringify({ ok: false, error: "No files found" }), {
-          "Content-Type": "application/json; charset=utf-8",
-        });
-        return;
-      }
-      let notes = [];
-      let errors = [];
-      let pending = jsonFiles.length;
-      jsonFiles.forEach((file) => {
-        fs.readFile(path.join(exportsDir, file), "utf8", (err2, data) => {
-          if (err2) {
-            errors.push(file + ": " + err2.message);
-          } else {
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.note) {
-                notes.push(parsed.note);
-              } else if (Array.isArray(parsed.notes)) {
-                notes = notes.concat(parsed.notes);
-              }
-            } catch (e) {
-              errors.push(file + ": invalid JSON");
-            }
-          }
-          pending--;
-          if (pending === 0) {
-            if (!notes.length) {
-              send(res, 200, JSON.stringify({ ok: false, error: errors.join("; ") || "No valid notes found" }), {
-                "Content-Type": "application/json; charset=utf-8",
-              });
-            } else {
-              send(res, 200, JSON.stringify({ ok: true, notes: notes, count: notes.length, errors: errors }), {
-                "Content-Type": "application/json; charset=utf-8",
-              });
-            }
-          }
-        });
-      });
-    });
-    return;
-  }
-
   if (req.method === "POST" && pathname === "/api/export") {
     readJsonBody(req)
       .then((payload) => {
