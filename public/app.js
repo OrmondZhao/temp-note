@@ -700,24 +700,11 @@ function renderFinder() {
   els.grid.innerHTML = notes
     .map(function (note) {
       var selected = state.mode === "edit" && note.id === state.selectedId;
-      var badges = [
-        note.pinned ? I18N.t("filter-pinned") : null,
-        note.favorite ? I18N.t("filter-favorite") : null,
-        note.type === "image" ? I18N.t("filter-image") : I18N.t("filter-text"),
-      ]
-        .filter(Boolean)
-        .map(function (label) { return '<span class="badge-pill">' + escapeHtml(label) + '</span>'; })
-        .join("");
 
       return '<article class="card' + (selected ? " selected" : "") + '" data-id="' + note.id + '">' +
         '<div class="card-body">' +
-          '<div class="meta-line">' +
-            '<span>' + escapeHtml(formatTime(note.updatedAt)) + '</span>' +
-            '<span>' + (note.pinned ? I18N.t("filter-pinned") : "") + (note.favorite ? " " + I18N.t("filter-favorite") : "") + '</span>' +
-          '</div>' +
           '<h3 class="card-title">' + escapeHtml(note.title) + '</h3>' +
           '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("no-body"))) + '</p>' +
-          '<div class="badges">' + badges + '</div>' +
         '</div>' +
       '</article>';
     })
@@ -787,8 +774,16 @@ function renderEditor(skipFlush) {
     });
   }
 
-  if (els.togglePin) els.togglePin.textContent = (note && note.pinned) ? I18N.t("unpin") : I18N.t("btn-pin");
-  if (els.toggleFavorite) els.toggleFavorite.textContent = (note && note.favorite) ? I18N.t("unfavorite") : I18N.t("btn-favorite");
+  if (els.togglePin) {
+    var isPinned = note && note.pinned;
+    els.togglePin.textContent = isPinned ? I18N.t("unpin") : I18N.t("btn-pin");
+    els.togglePin.classList.toggle("active", isPinned);
+  }
+  if (els.toggleFavorite) {
+    var isFav = note && note.favorite;
+    els.toggleFavorite.textContent = isFav ? I18N.t("unfavorite") : I18N.t("btn-favorite");
+    els.toggleFavorite.classList.toggle("active", isFav);
+  }
   if (els.detailMeta) els.detailMeta.textContent = note
     ? I18N.t("created-at") + " " + formatTime(note.createdAt || new Date()) + I18N.t("sep") + I18N.t("updated-at") + " " + formatTime(note.updatedAt || new Date())
     : I18N.t("meta-no-note");
