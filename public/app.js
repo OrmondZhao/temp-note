@@ -911,8 +911,21 @@ async function importAllFromExports() {
 function saveCurrentSafe() {
   var source = flushEditorState();
 
-  if (state.mode === "new") {
-    var draft = source || currentEditorData();
+  if (state.mode === "new" || !state.selectedId) {
+    var draft;
+    if (source) {
+      draft = source;
+    } else if (!state.selectedId) {
+      var fields = readEditorFields();
+      draft = {
+        title: fields.title,
+        body: fields.body,
+        _tagsRaw: fields.rawTags,
+        tags: parseTags(fields.rawTags),
+      };
+    } else {
+      draft = currentEditorData();
+    }
     if (!draft.title.trim() && !draft.body.trim() && !getAttachmentList(draft).length) {
       showToast(I18N.t("toast-no-content"));
       return;
