@@ -368,7 +368,8 @@ button {
   gap: 6px;
 }
 
-.detail-field label {
+.detail-field label,
+.detail-field .detail-label {
   font-size: 12px;
   color: var(--muted);
 }
