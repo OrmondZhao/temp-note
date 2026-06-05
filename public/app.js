@@ -701,12 +701,17 @@ function renderFinder() {
     .map(function (note) {
       var selected = state.mode === "edit" && note.id === state.selectedId;
       var typeBadge = note.type === "image" ? I18N.t("filter-image") : I18N.t("filter-text");
+      var badges = [
+        note.pinned ? '<span class="badge-pill badge-pinned">&#x1F4CC;</span>' : "",
+        note.favorite ? '<span class="badge-pill badge-favorite">&#x2B50;</span>' : "",
+        '<span class="badge-pill">' + escapeHtml(typeBadge) + '</span>',
+      ].join("");
 
       return '<article class="card' + (selected ? " selected" : "") + '" data-id="' + note.id + '">' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(note.title) + '</h3>' +
           '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("no-body"))) + '</p>' +
-          '<div class="badges"><span class="badge-pill">' + escapeHtml(typeBadge) + '</span></div>' +
+          '<div class="badges">' + badges + '</div>' +
         '</div>' +
       '</article>';
     })

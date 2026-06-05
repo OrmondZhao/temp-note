@@ -745,6 +745,11 @@ body[data-theme="dark"] .badge {
   color: #f5e8da;
 }
 
+body[data-theme="dark"] .badge-favorite {
+  background: rgba(255, 193, 7, 0.25);
+  color: #ffd54f;
+}
+
 body[data-theme="dark"] .dropzone {
   background:
     linear-gradient(135deg, rgba(127, 208, 195, 0.12), rgba(240, 155, 109, 0.08)),
@@ -849,6 +854,11 @@ body[data-theme="warm"] .badge {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.18);
   color: #4f3423;
+}
+
+body[data-theme="warm"] .badge-favorite {
+  background: rgba(255, 193, 7, 0.25);
+  color: #7a4f00;
 }
 
 body[data-theme="warm"] .dropzone {
@@ -995,6 +1005,15 @@ body[data-theme="dark"] .primary-btn {
   background: rgba(45, 124, 115, 0.1);
   color: var(--accent-2);
   font-size: 11px;
+}
+
+.badge-pinned {
+  background: rgba(45, 124, 115, 0.2);
+}
+
+.badge-favorite {
+  background: rgba(255, 193, 7, 0.2);
+  color: #e6a200;
 }
 
 .empty {
