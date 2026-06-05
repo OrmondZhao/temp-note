@@ -700,11 +700,13 @@ function renderFinder() {
   els.grid.innerHTML = notes
     .map(function (note) {
       var selected = state.mode === "edit" && note.id === state.selectedId;
+      var typeBadge = note.type === "image" ? I18N.t("filter-image") : I18N.t("filter-text");
 
       return '<article class="card' + (selected ? " selected" : "") + '" data-id="' + note.id + '">' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(note.title) + '</h3>' +
           '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("no-body"))) + '</p>' +
+          '<div class="badges"><span class="badge-pill">' + escapeHtml(typeBadge) + '</span></div>' +
         '</div>' +
       '</article>';
     })
