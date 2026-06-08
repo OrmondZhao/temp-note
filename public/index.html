@@ -12,25 +12,19 @@
     <main class="app">
       <aside class="panel left">
         <section class="hero">
-<div class="brand">
-              <h1 data-i18n="app-title" style="text-align:center">临时笔记</h1>
+          <div class="hero-top">
+            <div class="brand">
+              <h1 data-i18n="app-title">临时笔记</h1>
             </div>
+            <button class="collapse-btn" id="collapse-left" type="button" title="收起左侧栏" data-i18n-title="collapse-left">‹</button>
+          </div>
           <p data-i18n="app-tagline">把工作中来得快、用得快的文本和图片，统一放进一个随时可打开的桌面级网页里。</p>
         </section>
 
         <section class="quick-stats" aria-label="统计">
-          <div class="stat">
-            <span class="value" id="stat-total">0</span>
-            <span class="label" data-i18n="stat-total">素材总数</span>
-          </div>
-          <div class="stat">
-            <span class="value" id="stat-pinned">0</span>
-            <span class="label" data-i18n="stat-pinned">已置顶</span>
-          </div>
-          <div class="stat">
-            <span class="value" id="stat-images">0</span>
-            <span class="label" data-i18n="stat-images">图片素材</span>
-          </div>
+          <span class="stat"><span data-i18n="stat-total">素材总数</span> <strong id="stat-total">0</strong></span>
+          <span class="stat"><span data-i18n="stat-pinned">已置顶</span> <strong id="stat-pinned">0</strong></span>
+          <span class="stat"><span data-i18n="stat-images">图片素材</span> <strong id="stat-images">0</strong></span>
         </section>
 
         <section class="section">
@@ -53,10 +47,7 @@
           <div class="tag-cloud" id="tag-cloud"></div>
         </section>
 
-        <section class="section">
-          <h2 data-i18n="section-description">说明</h2>
-          <div class="inspector-block" data-i18n="description-text">左侧只放全局操作和标签，真正的标题、正文和图片编辑都在中间主区域完成。</div>
-        </section>
+
       </aside>
 
       <section class="panel workspace">
@@ -66,10 +57,14 @@
           </div>
           <div class="toolbar">
             <button class="ghost-btn" id="lang-toggle" type="button" title="切换语言 / Switch Language" data-i18n="lang-switch">EN / 中文</button>
-            <button class="ghost-btn" id="save-note" type="button" data-i18n="btn-save">保存</button>
             <button class="ghost-btn" id="toggle-pin" type="button" data-i18n="btn-pin">置顶</button>
             <button class="ghost-btn" id="toggle-favorite" type="button" data-i18n="btn-favorite">收藏</button>
             <button class="ghost-btn" id="toggle-theme" type="button" data-i18n="btn-theme-dark">暗黑模式</button>
+            <span class="toolbar-divider"></span>
+            <button class="ghost-btn" id="copy-summary" type="button" data-i18n="btn-copy-summary">复制摘要</button>
+            <button class="ghost-btn" id="move-up" type="button" data-i18n="btn-move-up">上移</button>
+            <button class="ghost-btn" id="move-down" type="button" data-i18n="btn-move-down">下移</button>
+            <button class="ghost-btn" id="delete-note" type="button" style="color: var(--danger);" data-i18n="btn-delete">删除</button>
           </div>
         </div>
 
@@ -97,12 +92,7 @@
               </div>
               <div id="detail-attachments" class="attachments-grid"></div>
             </div>
-            <div class="detail-actions">
-              <button class="mini-btn" id="copy-summary" type="button" data-i18n="btn-copy-summary">复制摘要</button>
-              <button class="mini-btn" id="move-up" type="button" data-i18n="btn-move-up">上移</button>
-              <button class="mini-btn" id="move-down" type="button" data-i18n="btn-move-down">下移</button>
-              <button class="mini-btn" id="delete-note" type="button" style="color: var(--danger);" data-i18n="btn-delete">删除</button>
-            </div>
+
             <p class="muted" id="detail-meta" data-i18n="meta-no-note">点击右侧卡片可切换到编辑模式，或在左侧新建一条内容。</p>
           </div>
         </div>
@@ -112,6 +102,7 @@
         <section class="inspector">
           <div class="inspector-head">
             <h2 data-i18n="panel-search">快速查找</h2>
+            <button class="collapse-btn" id="collapse-right" type="button" title="收起右侧栏" data-i18n-title="collapse-right">›</button>
             <span class="muted" id="result-count">0</span>
           </div>
 
@@ -147,6 +138,9 @@
         </section>
       </aside>
     </main>
+
+    <button class="float-toggle hidden" id="show-left" type="button" title="展开左侧栏">›</button>
+    <button class="float-toggle hidden" id="show-right" type="button" title="展开右侧栏">‹</button>
 
     <div class="toast" id="toast"></div>
     <div class="image-modal hidden" id="image-modal" aria-hidden="true">

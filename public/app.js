@@ -47,6 +47,10 @@ const els = {
   moveDown: document.getElementById("move-down"),
   deleteNote: document.getElementById("delete-note"),
   langToggle: document.getElementById("lang-toggle"),
+  collapseLeft: document.getElementById("collapse-left"),
+  collapseRight: document.getElementById("collapse-right"),
+  showLeft: document.getElementById("show-left"),
+  showRight: document.getElementById("show-right"),
 };
 
 const state = {
@@ -58,6 +62,8 @@ const state = {
   filters: [],
   sort: "updated-desc",
   theme: "light",
+  leftFolded: false,
+  rightFolded: false,
 };
 
 let db = null;
@@ -316,6 +322,8 @@ function loadUiState() {
     }
     if (ui.sort) state.sort = ui.sort;
     if (ui.theme) state.theme = ui.theme;
+    if (ui.leftFolded !== undefined) state.leftFolded = ui.leftFolded;
+    if (ui.rightFolded !== undefined) state.rightFolded = ui.rightFolded;
   } catch (e) {
     // ignore invalid ui state
   }
@@ -329,8 +337,28 @@ function saveUiState() {
       filters: state.filters,
       sort: state.sort,
       theme: state.theme,
+      leftFolded: state.leftFolded,
+      rightFolded: state.rightFolded,
     })
   );
+}
+
+function applyFoldState() {
+  var app = document.querySelector(".app");
+  app.classList.toggle("left-folded", state.leftFolded);
+  app.classList.toggle("right-folded", state.rightFolded);
+  els.showLeft.classList.toggle("hidden", !state.leftFolded);
+  els.showRight.classList.toggle("hidden", !state.rightFolded);
+}
+
+function toggleFold(side) {
+  if (side === "left") {
+    state.leftFolded = !state.leftFolded;
+  } else if (side === "right") {
+    state.rightFolded = !state.rightFolded;
+  }
+  applyFoldState();
+  saveUiState();
 }
 
 function openDB() {
@@ -1313,7 +1341,10 @@ if (els.importDirFile) els.importDirFile.addEventListener("change", async functi
     });
   });
 
-  els.saveNote.addEventListener("click", saveCurrentSafe);
+  els.collapseLeft.addEventListener("click", function () { toggleFold("left"); });
+  els.collapseRight.addEventListener("click", function () { toggleFold("right"); });
+  els.showLeft.addEventListener("click", function () { toggleFold("left"); });
+  els.showRight.addEventListener("click", function () { toggleFold("right"); });
 
   els.langToggle.addEventListener("click", function () {
     I18N.toggle();
@@ -1413,6 +1444,7 @@ async function boot() {
   try {
     await I18N.init();
     loadUiState();
+    applyFoldState();
     await loadState();
     if (!state.notes.length) {
       await persist();
