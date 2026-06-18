@@ -22,10 +22,8 @@ Click the **EN / 中文** button in the top-right corner to switch language on t
 * **中英双语 / Bilingual**: 同一页面内动态切换，文本/标签/提示语全部支持 / Dynamic language switch on a single page — all text, labels, and messages are translated
 * **富文本编辑 / Rich Text**: 基于 Quill 编辑器，支持加粗、斜体、标题、列表、代码块、链接等 / Built on Quill editor, supports bold, italic, headings, lists, code blocks, links
 * **文本记录 / Text Notes**: 输入标题、正文、标签，输入时自动保存 / Enter title, body, tags; auto-saved as you type
-* **图文混排 / Mixed Content**: 编辑区支持文本和图片混合编辑，图片以 Base64 编码内联存储 / Images stored inline as Base64
-* **截图粘贴 / Paste Screenshots**: `Ctrl+V` 直接粘贴，或拖拽图片到编辑区 / `Ctrl+V` to paste, or drag & drop images onto the editor
-* **拖拽预览 / Drag Preview**: 拖拽图片进入放置区时，半透明显示图片预览 / When dragging an image over the drop zone, a semi-transparent preview appears
-* **多附件 / Multiple Attachments**: 同一卡片可保存多张截图 / One card can hold multiple screenshots
+* **图文混排 / Mixed Content**: 编辑区支持文本和图片混合编辑，图片以 Base64 编码内嵌在正文中，无需独立附件管理 / Text and images mixed in one editor; images stored inline as Base64 in body, no separate attachment management
+* **截图粘贴 / Paste Screenshots**: `Ctrl+V` 直接粘贴，或拖拽图片到编辑区，图片直接写入正文 / `Ctrl+V` to paste, or drag & drop images onto the editor — images are embedded directly into body
 * **自动保存 / Auto-Save**: 内容保存在浏览器本地 IndexedDB，刷新不丢失 / Saved in browser IndexedDB; survives page refresh
 * **搜索筛选 / Search & Filter**: 按关键词搜索、按类型（文本/图片）筛选、按置顶/收藏筛选 / Search by keyword; filter by type (text/image), pinned, or favorites
 * **置顶收藏 / Pin & Favorite**: 重要内容可置顶或收藏 / Mark important items as pinned or favorites
@@ -56,8 +54,8 @@ Click the **EN / 中文** button in the top-right corner to switch language on t
 │          │                     │              │
 │ 统计数据  │  标题 / 正文 / 标签  │  搜索筛选   │
 │ Stats    │  Title / Body / Tags │  Search     │
-│ 新建复制  │  截图附件           │  卡片列表   │
-│ Actions  │  Screenshots        │  Card List  │
+│ 新建复制  │                     │  卡片列表   │
+│ Actions  │                     │  Card List  │
 │  标签云  │                     │              │
 │  Tags    │                     │              │
 └──────────┴─────────────────────┴──────────────┘
@@ -93,17 +91,10 @@ Both side panels can be collapsed — click the ‹ / › button at the top, or 
     "id": "abc123",
     "type": "text",
     "title": "会议记录",
-    "body": "<p>讨论了下季度目标...</p>",
+    "body": "<p>讨论了下季度目标...</p><img src=\"data:image/png;base64,...\" />",
     "tags": ["工作", "会议"],
     "pinned": false,
     "favorite": true,
-    "attachments": [
-      {
-        "id": "att-1",
-        "dataUrl": "data:image/png;base64,...",
-        "name": "screenshot.png"
-      }
-    ],
     "createdAt": "2026-06-08T10:00:00.000Z",
     "updatedAt": "2026-06-08T11:30:00.000Z"
   }

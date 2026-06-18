@@ -174,7 +174,7 @@ const I18N = {
 };
 
 function blankDraft() {
-  return { title: "", body: "", tags: [], _tagsRaw: "", attachments: [] };
+  return { title: "", body: "", tags: [], _tagsRaw: "" };
 }
 
 function createId() {
@@ -219,11 +219,22 @@ function getEditorHtml() {
 
 function escapeHtml(value) {
   return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, "\u0022")
+    .replace(/'/g, "'");
+}
+
+function bodyToPreview(html) {
+  if (!html) return "";
+  var div = document.createElement("div");
+  div.innerHTML = html;
+  var text = (div.textContent || div.innerText || "").trim();
+  if (html.indexOf("<img") !== -1) {
+    text += text ? " · 《图片》" : "《图片》";
+  }
+  return text;
 }
 
 function formatTime(value) {
@@ -395,9 +406,8 @@ function dbPut(value) {
 
 function cloneNotes(notes) {
   return notes.map(function (note) {
-    return Object.assign({}, note, { 
+    return Object.assign({}, note, {
       tags: note.tags ? note.tags.slice() : [],
-      attachments: note.attachments ? note.attachments.slice() : []
     });
   });
 }
@@ -500,26 +510,6 @@ function currentEditorData() {
   return note;
 }
 
-function getAttachmentList(note) {
-  if (!note) return [];
-  if (Array.isArray(note.attachments)) return note.attachments;
-  if (note.imageData) {
-    return [{ id: createId(), dataUrl: note.imageData, name: I18N.t("main-image") }];
-  }
-  return [];
-}
-
-function setEditorAttachments(attachments) {
-  if (state.mode === "new") {
-    state.draft.attachments = attachments;
-    renderEditor();
-    return;
-  }
-  var note = currentNote();
-  if (!note) return;
-  updateCurrent({ type: attachments.length ? "image" : "text", attachments: attachments });
-}
-
 function normalizeNote(note, fallbackIndex) {
   if (fallbackIndex === undefined) fallbackIndex = 0;
   var type = note && note.type === "image" ? "image" : "text";
@@ -564,7 +554,7 @@ function normalizeNote(note, fallbackIndex) {
 function setEditorToNew() {
   if (state.mode === "new") {
     var draft = flushEditorState();
-    if (draft && (String(draft.title || "").trim() || String(draft.body || "").trim() || getAttachmentList(draft).length)) {
+    if (draft && (String(draft.title || "").trim() || String(draft.body || "").trim())) {
       saveCurrentSafe();
     }
   } else if (state.selectedId) {
@@ -619,7 +609,7 @@ function activeNotes() {
   if (state.filters && state.filters.length) {
     notes = notes.filter(function (note) {
       var matchText = state.filters.indexOf("text") !== -1 && note.type === "text";
-      var matchImage = state.filters.indexOf("image") !== -1 && note.type === "image";
+      var matchImage = state.filters.indexOf("image") !== -1 && note.body && note.body.indexOf("<img") !== -1;
       var matchPinned = state.filters.indexOf("pinned") !== -1 && note.pinned;
       var matchFavorite = state.filters.indexOf("favorite") !== -1 && note.favorite;
       return matchText || matchImage || matchPinned || matchFavorite;
@@ -728,7 +718,7 @@ function renderFinder() {
   els.grid.innerHTML = notes
     .map(function (note) {
       var selected = state.mode === "edit" && note.id === state.selectedId;
-      var typeBadge = note.type === "image" ? I18N.t("filter-image") : I18N.t("filter-text");
+      var typeBadge = note.body && note.body.indexOf("<img") !== -1 ? I18N.t("filter-image") : I18N.t("filter-text");
       var badges = [
         note.pinned ? '<span class="badge-pill badge-pinned">&#x1F4CC;</span>' : "",
         note.favorite ? '<span class="badge-pill badge-favorite">&#x2B50;</span>' : "",
@@ -738,7 +728,7 @@ function renderFinder() {
       return '<article class="card' + (selected ? " selected" : "") + '" data-id="' + note.id + '">' +
         '<div class="card-body">' +
           '<h3 class="card-title">' + escapeHtml(note.title) + '</h3>' +
-          '<p class="card-text">' + escapeHtml(note.body || (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("no-body"))) + '</p>' +
+          '<p class="card-text">' + escapeHtml(bodyToPreview(note.body) || I18N.t("no-body")) + '</p>' +
           '<div class="badges">' + badges + '</div>' +
         '</div>' +
       '</article>';
@@ -756,9 +746,8 @@ function renderEditor(skipFlush) {
   _lastRenderedId = currentId;
   var note = state.mode === "new" ? state.draft : currentNote();
   var editingNew = state.mode === "new";
-  var attachments = getAttachmentList(note);
 
-  if (els.detailKind) els.detailKind.textContent = editingNew ? I18N.t("detail-kind-new") : note ? (note.type === "image" ? I18N.t("detail-kind-image") : I18N.t("detail-kind-text")) : I18N.t("detail-none");
+  if (els.detailKind) els.detailKind.textContent = editingNew ? I18N.t("detail-kind-new") : note ? ((note.body && note.body.indexOf("<img") !== -1) ? I18N.t("detail-kind-image") : I18N.t("detail-kind-text")) : I18N.t("detail-none");
   if (els.editorTitle) els.editorTitle.textContent = editingNew ? I18N.t("detail-kind-new") : note ? note.title : I18N.t("eyebrow-editor");
   if (els.title) els.title.value = (note && note.title) || "";
   var newBody = (note && note.body) || "";
@@ -770,44 +759,6 @@ function renderEditor(skipFlush) {
   if (els.tags) els.tags.value = editingNew
     ? ((note && note._tagsRaw) || "")
     : ((note && note.tags) || []).join(", ");
-  if (els.attachmentCount) els.attachmentCount.textContent = attachments.length + I18N.t("attachment-unit");
-
-  if (els.detailAttachments) {
-    if (attachments.length) {
-      els.detailAttachments.innerHTML = attachments
-        .map(function (attachment, index) {
-          var altText = escapeHtml(attachment.name || I18N.t("attachment-fallback", { n: index + 1 }));
-          return '<figure class="attachment-card" data-open-attachment="' + attachment.id + '">' +
-            '<img src="' + attachment.dataUrl + '" alt="' + altText + '" />' +
-            '<figcaption>' +
-              '<span>' + altText + '</span>' +
-              '<button class="mini-btn" type="button" data-remove-attachment="' + attachment.id + '">' + I18N.t("delete-attachment") + '</button>' +
-            '</figcaption>' +
-          '</figure>';
-        })
-        .join("");
-    } else {
-      els.detailAttachments.innerHTML = '<div class="muted">' + I18N.t("no-attachment") + '</div>';
-    }
-
-    els.detailAttachments.querySelectorAll("[data-remove-attachment]").forEach(function (button) {
-      button.addEventListener("click", function (event) {
-        event.stopPropagation();
-        var attachmentId = button.getAttribute("data-remove-attachment");
-        var nextAttachments = attachments.filter(function (a) { return a.id !== attachmentId; });
-        setEditorAttachments(nextAttachments);
-      });
-    });
-
-    els.detailAttachments.querySelectorAll("[data-open-attachment]").forEach(function (card) {
-      card.addEventListener("click", function () {
-        var attachmentId = card.getAttribute("data-open-attachment");
-        var attachment = attachments.find(function (item) { return item.id === attachmentId; });
-        if (!attachment) return;
-          openImageModal(attachment.dataUrl, attachment.name || (note && note.title) || I18N.t("img-preview-title"));
-      });
-    });
-  }
 
   if (els.togglePin) {
     var isPinned = note && note.pinned;
@@ -844,6 +795,30 @@ function render() {
 }
 
 function selectNote(id) {
+  if (state.mode === "new") {
+    var fields = readEditorFields();
+    var hasContent = fields.title.trim() || fields.body.trim();
+    if (hasContent) {
+      var msg = I18N.current === "en"
+        ? "Save the new note before switching?"
+        : "有新内容，是否保存？";
+      if (!window.confirm(msg)) return;
+      var note = makeNote({
+        title: fields.title,
+        body: fields.body,
+        tags: parseTags(fields.rawTags || ""),
+      });
+      state.notes.unshift(note);
+      state.selectedId = note.id;
+      state.mode = "edit";
+      state.draft = blankDraft();
+      render();
+      persist().catch(function (e) { console.error(e); });
+      return;
+    }
+    state.draft = blankDraft();
+    state.mode = "edit";
+  }
   if (state.mode === "edit" && state.selectedId) {
     if (flushEditorState()) {
       persist();
@@ -858,13 +833,12 @@ function updateCurrent(patch) {
   if (state.mode === "new") {
     Object.assign(state.draft, patch);
     renderEditor();
-    var hasContent = state.draft.title.trim() || state.draft.body.trim() || getAttachmentList(state.draft).length;
+    var hasContent = state.draft.title.trim() || state.draft.body.trim();
     if (!hasContent) return;
     var note = makeNote({
       title: state.draft.title,
       body: state.draft.body,
       tags: parseTags(state.draft._tagsRaw || ""),
-      attachments: getAttachmentList(state.draft),
     });
     state.notes.unshift(note);
     state.selectedId = note.id;
@@ -959,7 +933,7 @@ function saveCurrentSafe() {
     } else {
       draft = currentEditorData();
     }
-    if (!draft.title.trim() && !draft.body.trim() && !getAttachmentList(draft).length) {
+    if (!draft.title.trim() && !draft.body.trim()) {
       showToast(I18N.t("toast-no-content"));
       return;
     }
@@ -968,7 +942,6 @@ function saveCurrentSafe() {
       title: draft.title,
       body: draft.body,
       tags: Array.isArray(draft.tags) ? draft.tags : parseTags(draft._tagsRaw || ""),
-      attachments: getAttachmentList(draft),
     });
 
     state.notes.unshift(note);
@@ -993,7 +966,7 @@ function saveCurrentSafe() {
 
 async function copyCurrentSafe() {
   var note = readEditorSource();
-  var attachments = getAttachmentList(note);
+  var _removed_attachments_ref_
   var text = [
     note.title,
     quill ? quill.getText() : note.body,
@@ -1154,7 +1127,6 @@ function seedExample() {
       type: "text",
       title: I18N.t("example-title-text"),
       body: I18N.t("example-body-text"),
-      attachments: [],
       tags: [I18N.t("example-tag-work"), I18N.t("example-tag-pending")],
       pinned: true,
       favorite: false,
@@ -1167,29 +1139,6 @@ function seedExample() {
       type: "image",
       title: I18N.t("example-title-image"),
       body: I18N.t("example-body-image"),
-      attachments: [
-        {
-          id: createId(),
-          dataUrl:
-            "data:image/svg+xml;charset=utf-8," +
-            encodeURIComponent(
-              '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">' +
-              '<defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">' +
-              '<stop offset="0%" stop-color="#2d7c73"/>' +
-              '<stop offset="100%" stop-color="#f0b34f"/>' +
-              '</linearGradient></defs>' +
-              '<rect width="640" height="360" rx="36" fill="#f6efe4"/>' +
-              '<rect x="34" y="34" width="572" height="292" rx="28" fill="url(#g)" opacity="0.92"/>' +
-              '<circle cx="500" cy="100" r="72" fill="rgba(255,255,255,0.18)"/>' +
-              '<rect x="90" y="124" width="238" height="20" rx="10" fill="rgba(255,255,255,0.86)"/>' +
-              '<rect x="90" y="162" width="310" height="14" rx="7" fill="rgba(255,255,255,0.75)"/>' +
-              '<rect x="90" y="188" width="270" height="14" rx="7" fill="rgba(255,255,255,0.65)"/>' +
-              '<text x="90" y="258" fill="white" font-size="26" font-family="Arial, sans-serif">' + I18N.t("example-svg-text") + '</text>' +
-              '</svg>'
-            ),
-          name: I18N.t("example-attachment-name"),
-        },
-      ],
       tags: [I18N.t("example-tag-screenshot"), I18N.t("example-tag-reference")],
       pinned: false,
       favorite: true,
@@ -1215,27 +1164,15 @@ function readFileAsDataUrl(file) {
 
 async function handleIncomingImage(dataUrl, title) {
   if (title === undefined) title = I18N.t("screenshot-material");
-  if (state.mode === "new") {
-    state.draft.attachments = getAttachmentList(state.draft).concat([{ id: createId(), dataUrl: dataUrl, name: title }]);
-    if (!state.draft.title.trim()) state.draft.title = title;
-    renderEditor();
-    showToast(I18N.t("toast-draft-added"));
-    return;
+  var imgHtml = '<img src="' + dataUrl + '" alt="' + escapeHtml(title) + '" />';
+  if (!quill) return;
+  quill.clipboard.dangerouslyPasteHTML(quill.getLength() > 1 ? quill.root.innerHTML + imgHtml : imgHtml);
+  if (state.mode === "new" && !state.draft.title.trim()) state.draft.title = title;
+  if (state.mode === "edit") {
+    flushEditorState();
+    persist().catch(function(e) { console.error(e); });
   }
-  var note = currentNote();
-  if (!note) {
-    state.mode = "new";
-    state.draft = Object.assign({}, blankDraft(), {
-      title: title,
-      _tagsRaw: "",
-      attachments: [{ id: createId(), dataUrl: dataUrl, name: title }],
-    });
-    render();
-    showToast(I18N.t("toast-new-draft"));
-    return;
-  }
-  var attachments = getAttachmentList(note).concat([{ id: createId(), dataUrl: dataUrl, name: title }]);
-  updateCurrent({ type: "image", attachments: attachments, title: note.title || title });
+  showToast(I18N.t("toast-draft-added"));
 }
 
 function wireEvents() {
@@ -1254,6 +1191,7 @@ function wireEvents() {
   els.moveUp.addEventListener("click", function () { moveSelected(-1); });
   els.moveDown.addEventListener("click", function () { moveSelected(1); });
   els.deleteNote.addEventListener("click", deleteCurrent);
+  els.saveNote.addEventListener("click", function () { updateCurrent({}); });
   els.toggleTheme.addEventListener("click", toggleTheme);
   els.imageModalCopy.addEventListener("click", copyImageFromModal);
   els.imageModalClose.addEventListener("click", closeImageModal);
@@ -1356,62 +1294,64 @@ if (els.importDirFile) els.importDirFile.addEventListener("change", async functi
     }
   });
 
-  els.dropzone.addEventListener("dragenter", function (event) {
-    event.preventDefault();
-    els.dropzone.classList.add("drag-over");
-    els.dropzone._dragCounter = (els.dropzone._dragCounter || 0) + 1;
-    var files = event.dataTransfer && event.dataTransfer.files;
-    if (files && files.length && files[0].type.startsWith("image/")) {
-      var file = files[0];
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        var preview = els.dropzone.querySelector(".dz-preview");
-        if (preview) preview.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
+  if (els.dropzone) {
+    els.dropzone.addEventListener("dragenter", function (event) {
+      event.preventDefault();
+      els.dropzone.classList.add("drag-over");
+      els.dropzone._dragCounter = (els.dropzone._dragCounter || 0) + 1;
+      var files = event.dataTransfer && event.dataTransfer.files;
+      if (files && files.length && files[0].type.startsWith("image/")) {
+        var file = files[0];
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var preview = els.dropzone.querySelector(".dz-preview");
+          if (preview) preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
 
-  els.dropzone.addEventListener("dragleave", function (event) {
-    els.dropzone._dragCounter = (els.dropzone._dragCounter || 0) - 1;
-    if (els.dropzone._dragCounter <= 0) {
+    els.dropzone.addEventListener("dragleave", function (event) {
+      els.dropzone._dragCounter = (els.dropzone._dragCounter || 0) - 1;
+      if (els.dropzone._dragCounter <= 0) {
+        els.dropzone._dragCounter = 0;
+        els.dropzone.classList.remove("drag-over");
+        var preview = els.dropzone.querySelector(".dz-preview");
+        if (preview) preview.src = "";
+      }
+    });
+
+    els.dropzone.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      var files = event.dataTransfer && event.dataTransfer.files;
+      if (files && files.length && files[0].type.startsWith("image/")) {
+        var file = files[0];
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var preview = els.dropzone.querySelector(".dz-preview");
+          if (preview) preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    els.dropzone.addEventListener("drop", async function (event) {
+      event.preventDefault();
       els.dropzone._dragCounter = 0;
       els.dropzone.classList.remove("drag-over");
       var preview = els.dropzone.querySelector(".dz-preview");
       if (preview) preview.src = "";
-    }
-  });
-
-  els.dropzone.addEventListener("dragover", function (event) {
-    event.preventDefault();
-    var files = event.dataTransfer && event.dataTransfer.files;
-    if (files && files.length && files[0].type.startsWith("image/")) {
-      var file = files[0];
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        var preview = els.dropzone.querySelector(".dz-preview");
-        if (preview) preview.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
-
-  els.dropzone.addEventListener("drop", async function (event) {
-    event.preventDefault();
-    els.dropzone._dragCounter = 0;
-    els.dropzone.classList.remove("drag-over");
-    var preview = els.dropzone.querySelector(".dz-preview");
-    if (preview) preview.src = "";
-    var files = Array.from(event.dataTransfer.files).filter(function (file) { return file.type.startsWith("image/"); });
-    if (!files.length) {
-      showToast(I18N.t("toast-image-needed"));
-      return;
-    }
-    for (var i = 0; i < files.length; i++) {
-      var dataUrl = await readFileAsDataUrl(files[i]);
-      await handleIncomingImage(dataUrl, files[i].name.replace(/\.[^.]+$/, ""));
-    }
-  });
+      var files = Array.from(event.dataTransfer.files).filter(function (file) { return file.type.startsWith("image/"); });
+      if (!files.length) {
+        showToast(I18N.t("toast-image-needed"));
+        return;
+      }
+      for (var i = 0; i < files.length; i++) {
+        var dataUrl = await readFileAsDataUrl(files[i]);
+        await handleIncomingImage(dataUrl, files[i].name.replace(/\.[^.]+$/, ""));
+      }
+    });
+  }
 
   document.addEventListener("paste", async function (event) {
     var items = Array.from((event.clipboardData && event.clipboardData.items) || []);
@@ -1419,10 +1359,11 @@ if (els.importDirFile) els.importDirFile.addEventListener("change", async functi
     if (!imageItem) return;
     var file = imageItem.getAsFile();
     if (!file) return;
+    event.stopPropagation();
+    event.preventDefault();
     var dataUrl = await readFileAsDataUrl(file);
     await handleIncomingImage(dataUrl, I18N.t("paste-image"));
-    event.preventDefault();
-  });
+  }, true);
 
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
@@ -1438,6 +1379,16 @@ if (els.importDirFile) els.importDirFile.addEventListener("change", async functi
       }
     }
   });
+
+  if (els.content) {
+    els.content.addEventListener("click", function(event) {
+      var target = event.target.closest("img");
+      if (!target) return;
+      var src = target.getAttribute("src");
+      if (!src) return;
+      openImageModal(src, target.getAttribute("alt") || "");
+    });
+  }
 }
 
 async function boot() {
