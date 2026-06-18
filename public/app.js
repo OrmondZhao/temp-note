@@ -645,7 +645,7 @@ function activeNotes() {
 function renderStats() {
   els.statTotal.textContent = String(state.notes.length);
   els.statPinned.textContent = String(state.notes.filter(function (n) { return n.pinned; }).length);
-  els.statImages.textContent = String(state.notes.filter(function (n) { return n.type === "image"; }).length);
+  els.statImages.textContent = String(state.notes.filter(function (n) { return n.body && n.body.indexOf("<img") !== -1; }).length);
 }
 
 function renderTags() {
@@ -965,22 +965,30 @@ function saveCurrentSafe() {
 }
 
 async function copyCurrentSafe() {
-  var note = readEditorSource();
-  var _removed_attachments_ref_
-  var text = [
-    note.title,
-    quill ? quill.getText() : note.body,
-    note.tags && note.tags.length ? I18N.t("tag-label") + note.tags.join(I18N.current === "zh" ? "，" : ", ") : "",
-    attachments.length ? I18N.t("screenshot-count", { n: attachments.length }) : "",
-  ]
+  var fields = readEditorFields();
+  var bodyHtml = quill ? quill.root.innerHTML : fields.body;
+  var bodyText = quill ? quill.getText() : fields.body;
+  var tagsText = fields.rawTags
+    ? (I18N.t("tag-label") + fields.rawTags)
+    : "";
+  var text = [fields.title, bodyText, tagsText]
     .filter(Boolean)
     .join("\n\n");
 
   try {
-    await navigator.clipboard.writeText(text || note.title || note.body || "");
+    var clipData = new ClipboardItem({
+      "text/plain": new Blob([text], { type: "text/plain" }),
+      "text/html": new Blob([bodyHtml], { type: "text/html" }),
+    });
+    await navigator.clipboard.write([clipData]);
     showToast(I18N.t("toast-copied"));
   } catch (e) {
-    showToast(I18N.t("toast-copy-failed"));
+    try {
+      await navigator.clipboard.writeText(text || fields.title || bodyText);
+      showToast(I18N.t("toast-copied"));
+    } catch (e2) {
+      showToast(I18N.t("toast-copy-failed"));
+    }
   }
 }
 
