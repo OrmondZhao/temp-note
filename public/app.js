@@ -41,6 +41,7 @@ const els = {
   imageModalClose: document.getElementById("image-modal-close"),
   toggleTheme: document.getElementById("toggle-theme"),
   saveNote: document.getElementById("save-note"),
+  discardDraft: document.getElementById("discard-draft"),
   togglePin: document.getElementById("toggle-pin"),
   toggleFavorite: document.getElementById("toggle-favorite"),
   moveUp: document.getElementById("move-up"),
@@ -174,7 +175,7 @@ const I18N = {
 };
 
 function blankDraft() {
-  return { title: "", body: "", tags: [], _tagsRaw: "" };
+  return { title: "", body: "", tags: [], _tagsRaw: "", pinned: false, favorite: false };
 }
 
 function createId() {
@@ -412,6 +413,19 @@ function cloneNotes(notes) {
   });
 }
 
+async function ensurePersistentStorage() {
+  if (!navigator.storage || !navigator.storage.persist) {
+    console.warn("Persistent storage API not available in this browser");
+    return false;
+  }
+  if (await navigator.storage.persisted()) {
+    return true;
+  }
+  var granted = await navigator.storage.persist();
+  console.log(granted ? "Persistent storage granted" : "Persistent storage denied by user");
+  return granted;
+}
+
 async function loadState() {
   db = await openDB();
   var record = await dbGet(STATE_KEY);
@@ -549,6 +563,26 @@ function normalizeNote(note, fallbackIndex) {
     createdAt: (note && note.createdAt) || new Date().toISOString(),
     updatedAt: (note && note.updatedAt) || new Date().toISOString(),
   };
+}
+
+function discardDraft() {
+  state.draft = blankDraft();
+  state.mode = "new";
+  if (quill) {
+    quill.deleteText(0, quill.getLength());
+  }
+  if (els.title) els.title.value = "";
+  if (els.tags) els.tags.value = "";
+  if (els.togglePin) {
+    els.togglePin.classList.remove("active");
+    els.togglePin.textContent = I18N.t("btn-pin");
+  }
+  if (els.toggleFavorite) {
+    els.toggleFavorite.classList.remove("active");
+    els.toggleFavorite.textContent = I18N.t("btn-favorite");
+  }
+  render();
+  showToast(I18N.t("toast-draft-cleared"));
 }
 
 function setEditorToNew() {
@@ -773,6 +807,8 @@ function renderEditor(skipFlush) {
   if (els.detailMeta) els.detailMeta.textContent = note
     ? I18N.t("created-at") + " " + formatTime(note.createdAt || new Date()) + I18N.t("sep") + I18N.t("updated-at") + " " + formatTime(note.updatedAt || new Date())
     : I18N.t("meta-no-note");
+
+  if (els.discardDraft) els.discardDraft.style.display = editingNew ? "" : "none";
 }
 
 function renderButtons() {
@@ -1200,6 +1236,7 @@ function wireEvents() {
   els.moveDown.addEventListener("click", function () { moveSelected(1); });
   els.deleteNote.addEventListener("click", deleteCurrent);
   els.saveNote.addEventListener("click", function () { updateCurrent({}); });
+  els.discardDraft.addEventListener("click", discardDraft);
   els.toggleTheme.addEventListener("click", toggleTheme);
   els.imageModalCopy.addEventListener("click", copyImageFromModal);
   els.imageModalClose.addEventListener("click", closeImageModal);
@@ -1402,6 +1439,7 @@ if (els.importDirFile) els.importDirFile.addEventListener("change", async functi
 async function boot() {
   try {
     await I18N.init();
+    await ensurePersistentStorage();
     loadUiState();
     applyFoldState();
     await loadState();

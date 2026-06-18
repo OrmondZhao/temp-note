@@ -24,7 +24,8 @@ Click the **EN / 中文** button in the top-right corner to switch language on t
 * **文本记录 / Text Notes**: 输入标题、正文、标签，输入时自动保存 / Enter title, body, tags; auto-saved as you type
 * **图文混排 / Mixed Content**: 编辑区支持文本和图片混合编辑，图片以 Base64 编码内嵌在正文中，无需独立附件管理 / Text and images mixed in one editor; images stored inline as Base64 in body, no separate attachment management
 * **截图粘贴 / Paste Screenshots**: `Ctrl+V` 直接粘贴，或拖拽图片到编辑区，图片直接写入正文 / `Ctrl+V` to paste, or drag & drop images onto the editor — images are embedded directly into body
-* **自动保存 / Auto-Save**: 内容保存在浏览器本地 IndexedDB，刷新不丢失 / Saved in browser IndexedDB; survives page refresh
+* **自动保存 / Auto-Save**: 内容保存在浏览器本地 IndexedDB，刷新不丢失；应用启动时申请 `navigator.storage.persist()` 权限，授权后浏览器自动清理模式不会删除本地数据 / Saved in browser IndexedDB; survives page refresh; app requests persistent storage permission on boot so browser auto-cleanup won't erase data
+* **数据备份 / Data Backup**: 每次保存时自动持久化；支持单条或批量 JSON 导出到本地文件 / Auto-persisted on every save; supports single or batch JSON export to local file
 * **搜索筛选 / Search & Filter**: 按关键词搜索、按类型（文本/图片）筛选、按置顶/收藏筛选 / Search by keyword; filter by type (text/image), pinned, or favorites
 * **置顶收藏 / Pin & Favorite**: 重要内容可置顶或收藏 / Mark important items as pinned or favorites
 * **导入导出 / Import & Export**: 单条或批量 JSON 导出与导入，内容完全一致 / Single or batch JSON export/import with full fidelity
@@ -191,8 +192,10 @@ temp-note/
 
 * 图片数据量较大时，浏览器本地存储空间有限，请定期导出备份
 * When image data is large, browser storage is limited — export regularly as backup
-* 清除浏览器缓存会导致本地数据丢失
-* Clearing browser cache will erase local data
+* 应用已申请永久存储权限，浏览器自动清理不会删除本地数据
+* App requests persistent storage permission — browser auto-cleanup will not erase your data
+* 手动清除"Cookies 和网站数据"会删除所有本地存储
+* Manually clearing "Cookies and site data" will erase all local storage
 * 数据仅保存在当前浏览器设备，不支持跨设备同步
 * Data is stored only in the current browser; no cross-device sync
 * 浏览器 IndexedDB 存储上限因浏览器而异（通常 50MB ~ 500MB），大量图片可能触及上限

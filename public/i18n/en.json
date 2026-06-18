@@ -149,6 +149,7 @@
   "app-tagline": "A desk-level web page for capturing text and images that come fast and get used fast — open it anytime in your browser.",
   "btn-new-note-text": "New",
   "btn-save": "Save",
+  "btn-discard": "Discard",
   "btn-pin": "Pin",
   "btn-favorite": "Favorite",
   "btn-theme": "Toggle Theme"

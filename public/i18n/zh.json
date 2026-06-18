@@ -149,6 +149,7 @@
   "app-tagline": "把工作中来得快、用得快的文本和图片，统一放进一个随时可打开的桌面级网页里。",
   "btn-new-note-text": "新建",
   "btn-save": "保存",
+  "btn-discard": "放弃",
   "btn-pin": "置顶",
   "btn-favorite": "收藏",
   "btn-theme": "切换主题"
